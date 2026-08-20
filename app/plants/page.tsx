@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackupDownloadButton } from "@/components/BackupDownloadButton";
 import { PlantCard } from "@/components/PlantCard";
 import { getGardenSettings, listPlants } from "@/lib/plants";
 
@@ -54,6 +55,17 @@ export default async function PlantsPage() {
           ))}
         </section>
       )}
+
+      <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
+        <h2 className="font-semibold text-emerald-950">Respaldo</h2>
+        <p className="mt-1 text-sm text-emerald-900/70">
+          Descargá una copia con plantas, historial, lluvia y fotos para
+          guardarla en el celular o la compu.
+        </p>
+        <div className="mt-3">
+          <BackupDownloadButton />
+        </div>
+      </section>
     </main>
   );
 }
