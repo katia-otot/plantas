@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TreatmentListEditor } from "@/components/TreatmentListEditor";
 import { uploadPhotos } from "@/lib/client-api";
+import { withBasePath } from "@/lib/base-path";
 import { toInputDate } from "@/lib/format";
 import {
   migrateLegacyPestNotesToTreatments,
@@ -128,7 +129,7 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
       };
 
       const response = await fetch(
-        values.id ? `/api/plants/${values.id}` : "/api/plants",
+        withBasePath(values.id ? `/api/plants/${values.id}` : "/api/plants"),
         {
           method: values.id ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -223,7 +224,7 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
               <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-emerald-50">
                 {values.coverPhotoPath ? (
                   <Image
-                    src={values.coverPhotoPath}
+                    src={withBasePath(values.coverPhotoPath)}
                     alt="Portada"
                     fill
                     className="object-cover"

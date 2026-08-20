@@ -8,6 +8,7 @@ import { performAction } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
 import type { PlantTask } from "@/lib/types";
 import { TASK_LABELS } from "@/lib/types";
+import { ActionIcon } from "./ActionIcon";
 import { QuickActions } from "./QuickActions";
 import { StatusBadge } from "./StatusBadge";
 
@@ -57,9 +58,16 @@ export function TaskCard({ task }: { task: PlantTask }) {
           type="button"
           disabled={loading}
           onClick={markDone}
-          className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
-          {loading ? "..." : "Listo"}
+          {loading ? (
+            "..."
+          ) : (
+            <>
+              <ActionIcon name="checklist" size={28} />
+              <span>Listo</span>
+            </>
+          )}
         </button>
       </div>
 

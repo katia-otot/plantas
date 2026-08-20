@@ -1,4 +1,5 @@
 import type { CareEventType } from "./types";
+import { withBasePath } from "./base-path";
 
 export async function uploadPhotos(files: FileList | File[]): Promise<string[]> {
   const list = Array.from(files);
@@ -8,7 +9,7 @@ export async function uploadPhotos(files: FileList | File[]): Promise<string[]> 
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/upload", {
+    const response = await fetch(withBasePath("/api/upload"), {
       method: "POST",
       body: formData,
     });
@@ -29,7 +30,7 @@ export async function performAction(
   action: CareEventType,
   options?: { notes?: string; photoPaths?: string[]; happenedAt?: string; treatmentType?: string; treatmentLabel?: string },
 ) {
-  const response = await fetch(`/api/plants/${plantId}/actions`, {
+  const response = await fetch(withBasePath(`/api/plants/${plantId}/actions`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

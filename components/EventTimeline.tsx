@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { withBasePath } from "@/lib/base-path";
 import { EVENT_LABELS, type CareEventType } from "@/lib/types";
 
 const INITIAL_VISIBLE = 3;
@@ -41,7 +42,7 @@ function TimelineEntry({ event }: { event: TimelineEvent }) {
               className="relative aspect-square overflow-hidden rounded-xl bg-emerald-50"
             >
               <Image
-                src={photo.path}
+                    src={withBasePath(photo.path)}
                 alt={photo.caption ?? "Foto del historial"}
                 fill
                 className="object-cover"

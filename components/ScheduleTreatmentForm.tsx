@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toInputDate } from "@/lib/format";
+import { withBasePath } from "@/lib/base-path";
 import {
   TREATMENT_TYPE_LABELS,
   formatTreatmentActionNote,
@@ -116,7 +117,7 @@ export function ScheduleTreatmentForm({
 
     try {
       setSaving(true);
-      const response = await fetch(`/api/plants/${plantId}/pest`, {
+      const response = await fetch(withBasePath(`/api/plants/${plantId}/pest`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -153,7 +154,7 @@ export function ScheduleTreatmentForm({
   async function handleCancel() {
     try {
       setSaving(true);
-      const response = await fetch(`/api/plants/${plantId}/pest`, {
+      const response = await fetch(withBasePath(`/api/plants/${plantId}/pest`), {
         method: "DELETE",
       });
 

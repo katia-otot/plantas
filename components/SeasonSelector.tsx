@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { withBasePath } from "@/lib/base-path";
 import type { Season } from "@/lib/types";
 
 type SeasonMode = "auto" | Season;
@@ -34,7 +35,7 @@ export function SeasonSelector({
 
     try {
       setLoading(mode);
-      const response = await fetch("/api/settings/season", {
+      const response = await fetch(withBasePath("/api/settings/season"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

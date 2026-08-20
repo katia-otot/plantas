@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ActionIcon, type ActionIconName } from "@/components/ActionIcon";
 import { performAction } from "@/lib/client-api";
 import {
   getTreatmentLabel,
@@ -17,7 +18,14 @@ interface QuickActionsProps {
 }
 
 type QuickAction =
-  | { kind: "action"; action: CareEventType; label: string; tone: string; key: string }
+  | {
+      kind: "action";
+      action: CareEventType;
+      label: string;
+      tone: string;
+      key: string;
+      icon: ActionIconName;
+    }
   | {
       kind: "treatment";
       treatmentType: TreatmentType;
@@ -25,6 +33,7 @@ type QuickAction =
       label: string;
       tone: string;
       key: string;
+      icon: ActionIconName;
     };
 
 const baseActions: QuickAction[] = [
@@ -34,6 +43,7 @@ const baseActions: QuickAction[] = [
     label: "Regué",
     tone: "bg-sky-600 hover:bg-sky-700",
     key: "action:watering",
+    icon: "water-leaf",
   },
   {
     kind: "action",
@@ -41,6 +51,7 @@ const baseActions: QuickAction[] = [
     label: "Fertilicé",
     tone: "bg-amber-600 hover:bg-amber-700",
     key: "action:fertilizer",
+    icon: "supply-bag",
   },
   {
     kind: "action",
@@ -48,6 +59,7 @@ const baseActions: QuickAction[] = [
     label: "Podé",
     tone: "bg-emerald-700 hover:bg-emerald-800",
     key: "action:prune",
+    icon: "prune",
   },
 ];
 
@@ -55,6 +67,12 @@ const treatmentTones: Record<TreatmentType, string> = {
   "anti-bichos": "bg-orange-600 hover:bg-orange-700",
   "anti-hongos": "bg-orange-500 hover:bg-orange-600",
   otro: "bg-orange-400 hover:bg-orange-500",
+};
+
+const treatmentIcons: Record<TreatmentType, ActionIconName> = {
+  "anti-bichos": "inspect",
+  "anti-hongos": "flask-leaf",
+  otro: "cupped-hands",
 };
 
 function buildTreatmentActions(treatments: PlantTreatment[]): QuickAction[] {
@@ -68,6 +86,7 @@ function buildTreatmentActions(treatments: PlantTreatment[]): QuickAction[] {
       label,
       tone: treatmentTones[treatment.type],
       key: `treatment:${treatment.type}:${index}:${label}`,
+      icon: treatmentIcons[treatment.type],
     };
   });
 }
@@ -139,9 +158,16 @@ export function QuickActions({
                     item.key,
                   )
             }
-            className={`rounded-xl px-3 py-3 text-sm font-semibold text-white transition disabled:opacity-60 ${item.tone}`}
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl px-3 py-3.5 text-sm font-semibold text-white transition disabled:opacity-60 ${item.tone}`}
           >
-            {isLoading ? "..." : item.label}
+            {isLoading ? (
+              "..."
+            ) : (
+              <>
+                <ActionIcon name={item.icon} size={compact ? 32 : 36} />
+                <span>{item.label}</span>
+              </>
+            )}
           </button>
         );
       })}

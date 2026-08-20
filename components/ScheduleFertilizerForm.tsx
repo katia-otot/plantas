@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toInputDate } from "@/lib/format";
+import { withBasePath } from "@/lib/base-path";
 
 interface ScheduleFertilizerFormProps {
   plantId: string;
@@ -40,14 +41,17 @@ export function ScheduleFertilizerForm({
 
     try {
       setSaving(true);
-      const response = await fetch(`/api/plants/${plantId}/fertilizer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nextFertilizerAt: nextDate,
-          notes: notes.trim() || null,
-        }),
-      });
+      const response = await fetch(
+        withBasePath(`/api/plants/${plantId}/fertilizer`),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nextFertilizerAt: nextDate,
+            notes: notes.trim() || null,
+          }),
+        },
+      );
 
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as {
@@ -72,9 +76,12 @@ export function ScheduleFertilizerForm({
   async function handleCancel() {
     try {
       setSaving(true);
-      const response = await fetch(`/api/plants/${plantId}/fertilizer`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        withBasePath(`/api/plants/${plantId}/fertilizer`),
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Error al cancelar");

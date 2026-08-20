@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { withBasePath } from "@/lib/base-path";
 
 export function DeletePlantButton({ plantId }: { plantId: string }) {
   const router = useRouter();
@@ -14,7 +15,7 @@ export function DeletePlantButton({ plantId }: { plantId: string }) {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/plants/${plantId}`, {
+      const response = await fetch(withBasePath(`/api/plants/${plantId}`), {
         method: "DELETE",
       });
 

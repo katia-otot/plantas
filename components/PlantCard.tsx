@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { formatDueLabel, getPlantDueTasks, getWorstStatus } from "@/lib/schedule";
+import { withBasePath } from "@/lib/base-path";
 import type { Season } from "@/lib/types";
 import { StatusBadge } from "./StatusBadge";
 
@@ -65,7 +66,7 @@ export function PlantCard(props: PlantCardProps) {
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-emerald-50">
         {props.coverPhotoPath ? (
           <Image
-            src={props.coverPhotoPath}
+            src={withBasePath(props.coverPhotoPath)}
             alt={props.name}
             fill
             className="object-cover"

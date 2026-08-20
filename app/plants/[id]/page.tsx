@@ -9,6 +9,7 @@ import { ScheduleFertilizerForm } from "@/components/ScheduleFertilizerForm";
 import { ScheduleTreatmentForm } from "@/components/ScheduleTreatmentForm";
 import { getGardenSettings, getPlantById, getPlantCareTreatments, getPlantScheduleSummary } from "@/lib/plants";
 import { formatDate } from "@/lib/format";
+import { withBasePath } from "@/lib/base-path";
 import { getTreatmentLabel, TREATMENT_TYPE_LABELS } from "@/lib/treatments";
 import {
   formatDueLabel,
@@ -81,7 +82,7 @@ export default async function PlantDetailPage({ params }: PageProps) {
       <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-emerald-50">
         {plant.coverPhotoPath ? (
           <Image
-            src={plant.coverPhotoPath}
+            src={withBasePath(plant.coverPhotoPath)}
             alt={plant.name}
             fill
             className="object-cover"
