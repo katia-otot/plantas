@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Plant {
+  id               String    @id @default(cuid())
+  name             String
+  species          String?
+  location         String?
+  notes            String?
+  coverPhotoPath   String?
+  isIndoor         Boolean   @default(false)
+
+  waterSummerDays  Int       @default(2)
+  waterWinterDays  Int       @default(5)
+  rainPostponeDays Int       @default(2)
+  lastWateredAt    DateTime?
+  nextWateredAt    DateTime?
+
+  needsFertilizer  Boolean   @default(false)
+  nextFertilizerAt DateTime?
+  fertilizerNotes  String?
+  lastFertilizedAt DateTime?
+
+  needsPruning     Boolean   @default(false)
+  nextPruneAt      DateTime?
+  pruneNotes       String?
+
+  needsPest        Boolean   @default(false)
+  nextPestAt       DateTime?
+  careProducts     String?
+  pestNotes        String?
+  treatmentType    String?
+  lastPestAt       DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  events CareEvent[]
+  photos Photo[]
+}
+
+model CareEvent {
+  id         String   @id @default(cuid())
+  plantId    String
+  plant      Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  type       String
+  happenedAt DateTime @default(now())
+  notes      String?
+
+  photos Photo[]
+
+  createdAt DateTime @default(now())
+}
+
+model Photo {
+  id        String     @id @default(cuid())
+  path      String
+  caption   String?
+  plantId   String?
+  plant     Plant?     @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  eventId   String?
+  event     CareEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+}
+
+model GardenSettings {
+  id              String    @id @default("singleton")
+  lastRainAt      DateTime?
+  seasonOverride  String?
+  updatedAt       DateTime  @updatedAt
+}
