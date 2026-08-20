@@ -60,10 +60,10 @@ export function SeasonSelector({
 
   return (
     <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
-      <h2 className="font-semibold text-amber-950">Estación para riegos</h2>
+      <h2 className="font-semibold text-amber-950">Clima / estación</h2>
       <p className="mt-1 text-sm text-amber-900/70">
         Por defecto sigue el calendario del hemisferio sur. Si el clima se
-        adelanta, podés forzar verano o invierno para todo el jardín.
+        adelanta, podés forzar verano o invierno para los riegos.
       </p>
 
       <div className="mt-3 grid grid-cols-3 gap-2">

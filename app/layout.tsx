@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { AppHeader } from "@/components/AppHeader";
 import { NavBar } from "@/components/NavBar";
 import "./globals.css";
 
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="es" className={`${geistSans.variable} h-full`}>
       <body className="min-h-full bg-[#edf7f0] text-emerald-950 antialiased">
         <div className="flex min-h-full flex-col">
+          <AppHeader />
           <div className="flex-1">{children}</div>
           <NavBar />
         </div>

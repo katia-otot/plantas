@@ -18,7 +18,6 @@ import { formatDate } from "@/lib/format";
 import { TREATMENT_TYPE_LABELS } from "@/lib/treatments";
 import { TASK_LABELS, type Season } from "@/lib/types";
 import { RainAllButton } from "@/components/RainAllButton";
-import { SeasonSelector } from "@/components/SeasonSelector";
 import { TaskCard } from "@/components/TaskCard";
 
 export const dynamic = "force-dynamic";
@@ -95,12 +94,6 @@ export default async function HomePage() {
           {plants === 1 ? "" : "s"}
         </p>
       </header>
-
-      <SeasonSelector
-        effectiveSeason={effectiveSeason}
-        calendarSeason={calendarSeason}
-        seasonOverride={gardenSettings.seasonOverride}
-      />
 
       <RainAllButton plantCount={outdoorPlants} />
 
