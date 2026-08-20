@@ -6,6 +6,7 @@ import { ActionIcon, type ActionIconName } from "@/components/ActionIcon";
 import { performAction } from "@/lib/client-api";
 import {
   getTreatmentLabel,
+  isPestTreatmentType,
   type PlantTreatment,
   type TreatmentType,
 } from "@/lib/treatments";
@@ -63,32 +64,35 @@ const baseActions: QuickAction[] = [
   },
 ];
 
-const treatmentTones: Record<TreatmentType, string> = {
+const treatmentTones: Record<Exclude<TreatmentType, "fertilizante">, string> = {
   "anti-bichos": "bg-orange-600 hover:bg-orange-700",
   "anti-hongos": "bg-orange-500 hover:bg-orange-600",
   otro: "bg-orange-400 hover:bg-orange-500",
 };
 
-const treatmentIcons: Record<TreatmentType, ActionIconName> = {
+const treatmentIcons: Record<Exclude<TreatmentType, "fertilizante">, ActionIconName> = {
   "anti-bichos": "inspect",
   "anti-hongos": "flask-leaf",
   otro: "cupped-hands",
 };
 
 function buildTreatmentActions(treatments: PlantTreatment[]): QuickAction[] {
-  return treatments.map((treatment, index) => {
-    const label = getTreatmentLabel(treatment);
+  return treatments
+    .filter((treatment) => isPestTreatmentType(treatment.type))
+    .map((treatment, index) => {
+      const label = getTreatmentLabel(treatment);
+      const type = treatment.type as Exclude<TreatmentType, "fertilizante">;
 
-    return {
-      kind: "treatment",
-      treatmentType: treatment.type,
-      treatmentLabel: treatment.type === "otro" ? label : undefined,
-      label,
-      tone: treatmentTones[treatment.type],
-      key: `treatment:${treatment.type}:${index}:${label}`,
-      icon: treatmentIcons[treatment.type],
-    };
-  });
+      return {
+        kind: "treatment" as const,
+        treatmentType: treatment.type,
+        treatmentLabel: treatment.type === "otro" ? label : undefined,
+        label,
+        tone: treatmentTones[type],
+        key: `treatment:${treatment.type}:${index}:${label}`,
+        icon: treatmentIcons[type],
+      };
+    });
 }
 
 export function QuickActions({

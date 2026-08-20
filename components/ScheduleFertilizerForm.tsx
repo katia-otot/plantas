@@ -4,12 +4,18 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toInputDate } from "@/lib/format";
 import { withBasePath } from "@/lib/base-path";
+import {
+  getDefaultProductForTreatment,
+  getTreatmentByType,
+  type PlantTreatment,
+} from "@/lib/treatments";
 
 interface ScheduleFertilizerFormProps {
   plantId: string;
   needsFertilizer: boolean;
   nextFertilizerAt?: Date | string | null;
   fertilizerNotes?: string | null;
+  careTreatments: PlantTreatment[];
 }
 
 function getDefaultSaturdayInput(): string {
@@ -27,17 +33,34 @@ export function ScheduleFertilizerForm({
   needsFertilizer,
   nextFertilizerAt,
   fertilizerNotes,
+  careTreatments,
 }: ScheduleFertilizerFormProps) {
   const router = useRouter();
+  const fertilizerTreatment = useMemo(
+    () => getTreatmentByType(careTreatments, "fertilizante"),
+    [careTreatments],
+  );
   const defaultDate = useMemo(() => getDefaultSaturdayInput(), []);
   const [nextDate, setNextDate] = useState(
     nextFertilizerAt ? toInputDate(nextFertilizerAt) : defaultDate,
   );
-  const [notes, setNotes] = useState(fertilizerNotes?.trim() || "");
+  const [productName, setProductName] = useState(
+    () =>
+      fertilizerNotes?.trim() ||
+      (fertilizerTreatment
+        ? getDefaultProductForTreatment(fertilizerTreatment)
+        : ""),
+  );
   const [saving, setSaving] = useState(false);
 
   async function handleSchedule(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const resolvedProduct =
+      productName.trim() ||
+      (fertilizerTreatment
+        ? getDefaultProductForTreatment(fertilizerTreatment)
+        : "");
 
     try {
       setSaving(true);
@@ -48,7 +71,7 @@ export function ScheduleFertilizerForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             nextFertilizerAt: nextDate,
-            notes: notes.trim() || null,
+            notes: resolvedProduct || null,
           }),
         },
       );
@@ -130,17 +153,38 @@ export function ScheduleFertilizerForm({
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-amber-950">
-            Producto o nota (opcional)
-          </span>
-          <input
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-amber-200 px-3 py-3 text-base outline-none ring-amber-400 focus:ring-2"
-            placeholder="Ej. humus líquido, guano..."
-          />
-        </label>
+        {fertilizerTreatment && fertilizerTreatment.products.length > 1 ? (
+          <label className="block">
+            <span className="text-sm font-medium text-amber-950">Producto</span>
+            <select
+              value={productName}
+              onChange={(event) => setProductName(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-amber-200 px-3 py-3 text-base outline-none ring-amber-400 focus:ring-2"
+            >
+              {fertilizerTreatment.products.map((product) => (
+                <option key={product} value={product}>
+                  {product}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : fertilizerTreatment && fertilizerTreatment.products.length === 1 ? (
+          <p className="text-sm text-amber-900/70">
+            Producto: {fertilizerTreatment.products[0]}
+          </p>
+        ) : (
+          <label className="block">
+            <span className="text-sm font-medium text-amber-950">
+              Producto o nota (opcional)
+            </span>
+            <input
+              value={productName}
+              onChange={(event) => setProductName(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-amber-200 px-3 py-3 text-base outline-none ring-amber-400 focus:ring-2"
+              placeholder="Ej. humus líquido, guano..."
+            />
+          </label>
+        )}
 
         <div className="flex flex-col gap-2">
           <button

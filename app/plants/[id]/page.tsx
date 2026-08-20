@@ -181,6 +181,7 @@ export default async function PlantDetailPage({ params }: PageProps) {
         needsFertilizer={plant.needsFertilizer}
         nextFertilizerAt={plant.nextFertilizerAt}
         fertilizerNotes={plant.fertilizerNotes}
+        careTreatments={careTreatments}
       />
 
       <ScheduleTreatmentForm

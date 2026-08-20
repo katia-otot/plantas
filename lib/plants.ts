@@ -354,8 +354,14 @@ export async function performPlantAction(
   const eventNotes =
     action === "prune" && !notes && plant.pruneNotes
       ? plant.pruneNotes
-      : action === "fertilizer" && !notes && plant.fertilizerNotes
-        ? plant.fertilizerNotes
+      : action === "fertilizer" && !notes
+        ? plant.fertilizerNotes ||
+          (() => {
+            const fertilizer = getTreatmentByType(treatments, "fertilizante");
+            return fertilizer
+              ? formatTreatmentActionNote(fertilizer)
+              : null;
+          })()
         : action === "pest" && !notes
           ? pestTreatment
             ? formatTreatmentActionNote(pestTreatment)

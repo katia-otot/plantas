@@ -9,6 +9,7 @@ import {
   formatTreatmentActionNote,
   getDefaultProductForTreatment,
   getTreatmentLabel,
+  isPestTreatmentType,
   type PlantTreatment,
   type TreatmentType,
 } from "@/lib/treatments";
@@ -74,14 +75,18 @@ export function ScheduleTreatmentForm({
   treatmentType: initialType,
   careTreatments,
 }: ScheduleTreatmentFormProps) {
+  const pestTreatments = useMemo(
+    () => careTreatments.filter((treatment) => isPestTreatmentType(treatment.type)),
+    [careTreatments],
+  );
   const router = useRouter();
   const defaultDate = useMemo(() => getDefaultSaturdayInput(), []);
   const initialIndex = useMemo(
-    () => findInitialTreatmentIndex(careTreatments, initialType, pestNotes),
-    [careTreatments, initialType, pestNotes],
+    () => findInitialTreatmentIndex(pestTreatments, initialType, pestNotes),
+    [pestTreatments, initialType, pestNotes],
   );
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
-  const selectedTreatment = careTreatments[selectedIndex] ?? null;
+  const selectedTreatment = pestTreatments[selectedIndex] ?? null;
   const [productName, setProductName] = useState(
     () =>
       pestNotes?.trim() ||
@@ -93,7 +98,7 @@ export function ScheduleTreatmentForm({
   const [saving, setSaving] = useState(false);
 
   function handleTreatmentChange(index: number) {
-    const treatment = careTreatments[index];
+    const treatment = pestTreatments[index];
     setSelectedIndex(index);
     setProductName(getDefaultProductForTreatment(treatment));
   }
@@ -175,13 +180,12 @@ export function ScheduleTreatmentForm({
     ? TREATMENT_TYPE_LABELS[initialType as TreatmentType] ?? "Tratamiento"
     : "Tratamiento";
 
-  if (careTreatments.length === 0) {
+  if (pestTreatments.length === 0) {
     return (
       <section className="rounded-2xl border border-orange-200 bg-orange-50/60 p-4 shadow-sm">
         <h2 className="font-semibold text-orange-950">Programar tratamiento</h2>
         <p className="mt-2 text-sm text-orange-900/70">
-          Primero cargá tratamientos en editar planta (anti-bichos, anti-hongos
-          u otro).
+          Primero cargá anti-bichos, anti-hongos u otro en editar planta.
         </p>
       </section>
     );
@@ -217,7 +221,7 @@ export function ScheduleTreatmentForm({
             }
             className="mt-1 w-full rounded-xl border border-orange-200 px-3 py-3 text-base outline-none ring-orange-400 focus:ring-2"
           >
-            {careTreatments.map((treatment, index) => (
+            {pestTreatments.map((treatment, index) => (
               <option key={`${treatment.type}-${index}`} value={index}>
                 {getTreatmentLabel(treatment)}
                 {treatment.products.length > 0

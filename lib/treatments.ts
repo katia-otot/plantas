@@ -1,4 +1,4 @@
-export type TreatmentType = "anti-bichos" | "anti-hongos" | "otro";
+export type TreatmentType = "fertilizante" | "anti-bichos" | "anti-hongos" | "otro";
 
 export interface PlantTreatment {
   type: TreatmentType;
@@ -16,16 +16,25 @@ export interface CareProduct {
 }
 
 export const TREATMENT_TYPES: TreatmentType[] = [
+  "fertilizante",
   "anti-bichos",
   "anti-hongos",
   "otro",
 ];
 
 export const TREATMENT_TYPE_LABELS: Record<TreatmentType, string> = {
+  fertilizante: "Fertilizante",
   "anti-bichos": "Anti-bichos",
   "anti-hongos": "Anti-hongos",
   otro: "Otro",
 };
+
+/** Treatments that appear in pest/quick-treatment actions (not fertilizer). */
+export const PEST_TREATMENT_TYPES: TreatmentType[] = [
+  "anti-bichos",
+  "anti-hongos",
+  "otro",
+];
 
 export const CARE_PRODUCT_TYPES = TREATMENT_TYPES;
 export const CARE_PRODUCT_LABELS = TREATMENT_TYPE_LABELS;
@@ -65,7 +74,8 @@ function isValidTreatment(value: unknown): value is PlantTreatment {
 
 function migrateProductsToTreatments(products: CareProduct[]): PlantTreatment[] {
   const treatments: PlantTreatment[] = [];
-  const grouped: Record<"anti-bichos" | "anti-hongos", string[]> = {
+  const grouped: Record<"fertilizante" | "anti-bichos" | "anti-hongos", string[]> = {
+    fertilizante: [],
     "anti-bichos": [],
     "anti-hongos": [],
   };
@@ -81,21 +91,18 @@ function migrateProductsToTreatments(products: CareProduct[]): PlantTreatment[] 
       continue;
     }
 
-    grouped[product.type].push(name);
+    if (product.type in grouped) {
+      grouped[product.type as keyof typeof grouped].push(name);
+    }
   }
 
-  if (grouped["anti-bichos"].length > 0) {
-    treatments.push({
-      type: "anti-bichos",
-      products: grouped["anti-bichos"],
-    });
-  }
-
-  if (grouped["anti-hongos"].length > 0) {
-    treatments.push({
-      type: "anti-hongos",
-      products: grouped["anti-hongos"],
-    });
+  for (const type of ["fertilizante", "anti-bichos", "anti-hongos"] as const) {
+    if (grouped[type].length > 0) {
+      treatments.push({
+        type,
+        products: grouped[type],
+      });
+    }
   }
 
   return treatments;
@@ -343,6 +350,10 @@ export function emptyTreatment(type: TreatmentType): PlantTreatment {
   return { type, products: [""] };
 }
 
+export function defaultNewPlantTreatments(): PlantTreatment[] {
+  return [emptyTreatment("fertilizante")];
+}
+
 export function canAddTreatmentType(
   treatments: PlantTreatment[],
   type: TreatmentType,
@@ -360,4 +371,8 @@ export function availableTreatmentTypes(
   return TREATMENT_TYPES.filter((type) =>
     canAddTreatmentType(treatments, type),
   );
+}
+
+export function isPestTreatmentType(type: TreatmentType): boolean {
+  return PEST_TREATMENT_TYPES.includes(type);
 }

@@ -8,6 +8,7 @@ import { uploadPhotos } from "@/lib/client-api";
 import { withBasePath } from "@/lib/base-path";
 import { toInputDate } from "@/lib/format";
 import {
+  defaultNewPlantTreatments,
   migrateLegacyPestNotesToTreatments,
   type PlantTreatment,
 } from "@/lib/treatments";
@@ -48,7 +49,7 @@ const defaultValues: PlantFormValues = {
   needsPruning: false,
   nextPruneAt: "",
   pruneNotes: "",
-  careTreatments: [],
+  careTreatments: defaultNewPlantTreatments(),
   lastWateredAt: "",
 };
 
@@ -59,10 +60,12 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
     ...initialValues,
     careTreatments:
       initialValues?.careTreatments ??
-      migrateLegacyPestNotesToTreatments(
-        null,
-        initialValues?.pestNotes ?? null,
-      ),
+      (initialValues?.id
+        ? migrateLegacyPestNotesToTreatments(
+            null,
+            initialValues?.pestNotes ?? null,
+          )
+        : defaultNewPlantTreatments()),
     nextPruneAt: initialValues?.nextPruneAt
       ? toInputDate(initialValues.nextPruneAt)
       : "",
@@ -307,8 +310,8 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
           Tratamientos
         </h2>
         <p className="mt-2 text-sm text-emerald-900/70">
-          Cargá los tratamientos de esta planta. Cada uno puede tener uno o más
-          productos.
+          Fertilizante viene precargado. También podés sumar anti-bichos,
+          anti-hongos u otro, cada uno con sus productos.
         </p>
         <div className="mt-4">
           <TreatmentListEditor
