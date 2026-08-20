@@ -66,7 +66,7 @@ export function SeasonSelector({
         adelanta, podés forzar verano o invierno para los riegos.
       </p>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 flex flex-col gap-2">
         {modes.map((mode) => {
           const isActive = currentMode === mode;
           const isBusy = loading === mode;
@@ -77,7 +77,7 @@ export function SeasonSelector({
               type="button"
               disabled={loading !== null}
               onClick={() => handleSelect(mode)}
-              className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+              className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${
                 isActive
                   ? "bg-amber-600 text-white"
                   : "bg-white text-amber-950 ring-1 ring-amber-200 hover:bg-amber-100/80"

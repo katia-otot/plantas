@@ -12,7 +12,7 @@ export async function AppHeader() {
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-emerald-900/10 bg-[#edf7f0]/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-emerald-900/10 bg-[#edf7f0]">
       <div className="mx-auto flex h-14 w-full max-w-lg items-center justify-between px-4">
         <p className="text-sm font-semibold tracking-wide text-emerald-800">
           Plantas del patio
