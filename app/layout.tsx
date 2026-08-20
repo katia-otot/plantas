@@ -19,6 +19,9 @@ export const viewport: Viewport = {
   themeColor: "#2f4a2f",
 };
 
+// SQLite-backed pages must not be prerendered at build time.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${geistSans.variable} h-full`}>

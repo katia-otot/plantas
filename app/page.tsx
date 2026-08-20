@@ -21,6 +21,8 @@ import { RainAllButton } from "@/components/RainAllButton";
 import { SeasonSelector } from "@/components/SeasonSelector";
 import { TaskCard } from "@/components/TaskCard";
 
+export const dynamic = "force-dynamic";
+
 async function getTodayTasks(
   lastGlobalRainAt: Date | null,
   seasonOverride: Season | null,

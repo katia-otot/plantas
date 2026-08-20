@@ -2,6 +2,8 @@ import Link from "next/link";
 import { PlantCard } from "@/components/PlantCard";
 import { getGardenSettings, listPlants } from "@/lib/plants";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlantsPage() {
   const [plants, gardenSettings] = await Promise.all([
     listPlants(),
