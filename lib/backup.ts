@@ -1,7 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/db";
-import { getUploadDir } from "@/lib/uploads";
 
 export const BACKUP_VERSION = 1;
 
@@ -42,7 +41,9 @@ async function readPhotoFile(photoPath: string | null | undefined) {
   }
 
   try {
-    const buffer = await readFile(path.join(getUploadDir(), filename));
+    const buffer = await readFile(
+      path.join(process.cwd(), "data", "uploads", filename),
+    );
     return {
       filename,
       mimeType: mimeFromFilename(filename),
