@@ -31,8 +31,8 @@ export default async function PatioMapPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
-      <header>
+    <main className="flex flex-1 flex-col">
+      <header className="mx-auto w-full max-w-lg px-4 pt-4 pb-2">
         <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
           Patio
         </p>

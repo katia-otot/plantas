@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { withBasePath } from "@/lib/base-path";
 import type { DueStatus } from "@/lib/types";
 
@@ -66,6 +66,83 @@ function pointerDistance(
   b: { x: number; y: number },
 ) {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function MapControlButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      onPointerDown={(event) => event.stopPropagation()}
+      className={`pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full shadow-md backdrop-blur-sm transition-colors ${
+        active
+          ? "bg-amber-500 text-white"
+          : "bg-white/92 text-emerald-900 hover:bg-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="11" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="m6.5 12.5 3.5 3.5 7.5-8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ZoomResetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <circle cx="10.5" cy="10.5" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M15.5 15.5 20 20"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M8.5 10.5h4M10.5 8.5v4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 export function PatioMapBoard({ plants, mapSrc }: Props) {
@@ -508,40 +585,10 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     pinching || scale > MIN_ZOOM || drag?.kind === "pan";
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          {editMode ? (
-            <p className="text-sm text-emerald-900/70">
-              Tocá una para editarla · arrastrá · tamaño
-            </p>
-          ) : null}
-          {scale > 1 ? (
-            <button
-              type="button"
-              onClick={resetZoom}
-              className="rounded-xl border border-emerald-900/15 bg-white px-3 py-2 text-sm font-semibold text-emerald-900"
-            >
-              Zoom {scale.toFixed(1)}× · restablecer
-            </button>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={toggleEditMode}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-            editMode
-              ? "bg-amber-500 text-white"
-              : "border border-emerald-900/15 bg-white text-emerald-900"
-          }`}
-        >
-          {editMode ? "Listo" : "Ubicar"}
-        </button>
-      </div>
-
+    <div className="flex flex-col">
       <div
         ref={viewportRef}
-        className={`relative w-full overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm select-none ${
+        className={`relative w-full overflow-hidden border-y border-emerald-900/10 bg-white select-none ${
           blockPageScroll ? "touch-none" : "touch-pan-y"
         }`}
         style={{ aspectRatio: "610 / 1024" }}
@@ -559,6 +606,30 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
           applyZoomAt(scale * factor, event.clientX, event.clientY);
         }}
       >
+        <div className="pointer-events-none absolute right-2 top-2 z-40 flex flex-col items-end gap-2">
+          <MapControlButton
+            label={editMode ? "Listo" : "Ubicar plantas"}
+            active={editMode}
+            onClick={toggleEditMode}
+          >
+            {editMode ? <CheckIcon /> : <PinIcon />}
+          </MapControlButton>
+          {scale > 1 ? (
+            <MapControlButton
+              label={`Zoom ${scale.toFixed(1)}× · restablecer`}
+              onClick={resetZoom}
+            >
+              <ZoomResetIcon />
+            </MapControlButton>
+          ) : null}
+        </div>
+
+        {editMode ? (
+          <p className="pointer-events-none absolute bottom-2 left-2 right-16 z-40 rounded-lg bg-emerald-950/80 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+            Tocá una · arrastrá · tamaño
+          </p>
+        ) : null}
+
         <div
           ref={boardRef}
           className="absolute inset-0 origin-top-left will-change-transform"
@@ -670,7 +741,7 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
       </div>
 
       {editMode ? (
-        <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
+        <section className="mx-4 mt-4 rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
           <h2 className="font-semibold text-emerald-950">
             Sin ubicar ({unplaced.length})
           </h2>
