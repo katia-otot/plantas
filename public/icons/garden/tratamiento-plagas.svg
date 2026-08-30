@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Tratamiento contra plagas</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="green line" d="M15 71c20-5 36-1 51 10-19 5-36 1-51-10z"/>
+<path class="line none" d="M26 72c12 1 23 4 33 8"/>
+<g transform-origin="31px 34px">
+  <animateTransform attributeName="transform" type="rotate" values="0 31 34;-5 31 34;0 31 34" dur="1.6s" repeatCount="indefinite"/>
+  <path class="blue2 line" d="M18 31h25l3 31H16z"/>
+  <path class="purple line" d="M23 22h16v10H23z"/>
+  <path class="line none" d="M35 22c0-8 13-8 18-2"/>
+  <path class="line none" d="M52 20h11"/>
+</g>
+<g>
+  <circle cx="69" cy="35" r="5" class="red line"/>
+  <circle cx="64" cy="31" r="2.5" class="red line"/>
+  <circle cx="74" cy="31" r="2.5" class="red line"/>
+  <path class="thin none" d="M64 36h-7M74 36h7M65 42l-5 5M73 42l5 5"/>
+  <animateTransform attributeName="transform" type="translate" values="0 0;2 -2;0 0;-2 1;0 0" dur=".8s" repeatCount="indefinite"/>
+</g>
+<g class="blue">
+  <circle cx="62" cy="21" r="2"><animate attributeName="cx" values="60;73" dur=".7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur=".7s" repeatCount="indefinite"/></circle>
+  <circle cx="62" cy="25" r="2"><animate attributeName="cx" values="60;76" dur=".8s" begin=".2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur=".8s" begin=".2s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

@@ -80,6 +80,39 @@ export function getEffectiveLastWateredAt(
   return lastWater.getTime() >= lastRain.getTime() ? lastWater : lastRain;
 }
 
+export type WateringBasis = {
+  kind: "rain" | "watering";
+  date: Date;
+};
+
+/** What date the next watering interval is counted from. */
+export function getWateringBasis(
+  plant: Pick<Plant, "lastWateredAt" | "isIndoor">,
+  lastGlobalRainAt: Date | null,
+): WateringBasis | null {
+  const lastWater = plant.lastWateredAt ? startOfDay(plant.lastWateredAt) : null;
+  const lastRain =
+    plant.isIndoor || !lastGlobalRainAt ? null : startOfDay(lastGlobalRainAt);
+
+  if (!lastWater && !lastRain) {
+    return null;
+  }
+
+  if (!lastWater) {
+    return { kind: "rain", date: lastRain! };
+  }
+
+  if (!lastRain) {
+    return { kind: "watering", date: lastWater };
+  }
+
+  if (lastRain.getTime() > lastWater.getTime()) {
+    return { kind: "rain", date: lastRain };
+  }
+
+  return { kind: "watering", date: lastWater };
+}
+
 export function computeEffectiveNextWateredAt(
   plant: Pick<
     Plant,
@@ -92,6 +125,31 @@ export function computeEffectiveNextWateredAt(
   const effectiveLast = getEffectiveLastWateredAt(plant, lastGlobalRainAt);
   return computeNextWateredAt(
     { ...plant, lastWateredAt: effectiveLast },
+    fromDate,
+    seasonOverride,
+  );
+}
+
+/** Prefer the stored next watering date (incl. manual schedule); else compute. */
+export function resolveNextWateredAt(
+  plant: Pick<
+    Plant,
+    | "waterSummerDays"
+    | "waterWinterDays"
+    | "lastWateredAt"
+    | "isIndoor"
+    | "nextWateredAt"
+  >,
+  lastGlobalRainAt: Date | null,
+  fromDate: Date = new Date(),
+  seasonOverride?: Season | null,
+): Date {
+  if (plant.nextWateredAt) {
+    return startOfDay(plant.nextWateredAt);
+  }
+  return computeEffectiveNextWateredAt(
+    plant,
+    lastGlobalRainAt,
     fromDate,
     seasonOverride,
   );
@@ -197,29 +255,50 @@ export function daysUntil(dueAt: Date, today: Date = new Date()): number {
   return Math.round(diff / MS_PER_DAY);
 }
 
-export function formatDueLabel(dueAt: Date, today: Date = new Date()): string {
+function formatWeekdayShort(dueAt: Date): string {
+  return startOfDay(dueAt)
+    .toLocaleDateString("es-AR", { weekday: "short" })
+    .replace(/\.$/, "");
+}
+
+export function formatDueLabel(
+  dueAt: Date,
+  today: Date = new Date(),
+  taskLabel?: string,
+): string {
   const status = getDueStatus(dueAt, today);
   const delta = daysUntil(dueAt, today);
+  const weekday = formatWeekdayShort(dueAt);
+  const withTask = (relative: string) =>
+    taskLabel ? `${taskLabel} ${relative}` : relative;
 
   if (status === "overdue") {
     const overdueDays = Math.abs(delta);
+    const base =
+      overdueDays === 0 ? "atrasada" : `atrasada ${overdueDays}d`;
+    if (taskLabel) {
+      return withTask(base);
+    }
     return overdueDays === 0 ? "Atrasada" : `Atrasada ${overdueDays}d`;
   }
 
   if (status === "due") {
-    return "Hoy";
+    return withTask(taskLabel ? `hoy, ${weekday}` : `Hoy, ${weekday}`);
   }
 
   if (delta === 1) {
-    return "Mañana";
+    return withTask(taskLabel ? `mañana, ${weekday}` : `Mañana, ${weekday}`);
   }
 
-  return `En ${delta} días`;
+  return withTask(
+    taskLabel ? `en ${delta} días, ${weekday}` : `En ${delta} días, ${weekday}`,
+  );
 }
 
 export function getPlantDueTasks(
   plant: {
     lastWateredAt: Date | null;
+    nextWateredAt?: Date | null;
     nextPruneAt: Date | null;
     needsPest: boolean;
     nextPestAt: Date | null;
@@ -237,8 +316,11 @@ export function getPlantDueTasks(
   const tasks: Array<{ taskType: TaskType; dueAt: Date; status: DueStatus }> =
     [];
 
-  const nextWater = computeEffectiveNextWateredAt(
-    plant,
+  const nextWater = resolveNextWateredAt(
+    {
+      ...plant,
+      nextWateredAt: plant.nextWateredAt ?? null,
+    },
     lastGlobalRainAt,
     today,
     seasonOverride,

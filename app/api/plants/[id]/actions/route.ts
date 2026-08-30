@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { performPlantAction } from "@/lib/plants";
+import { getPlantById, performPlantAction } from "@/lib/plants";
 import { startOfDay } from "@/lib/schedule";
 import type { TreatmentType } from "@/lib/treatments";
 import type { CareEventType } from "@/lib/types";
@@ -20,15 +19,23 @@ const VALID_ACTIONS: CareEventType[] = [
 
 function parseHappenedAt(value: unknown): Date {
   if (!value || typeof value !== "string") {
-    return new Date();
+    return startOfDay(new Date());
   }
 
+  let parsed: Date;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [year, month, day] = value.split("-").map(Number);
-    return startOfDay(new Date(year, month - 1, day));
+    parsed = startOfDay(new Date(year, month - 1, day));
+  } else {
+    parsed = startOfDay(new Date(value));
   }
 
-  return startOfDay(new Date(value));
+  if (Number.isNaN(parsed.getTime())) {
+    return startOfDay(new Date());
+  }
+
+  const today = startOfDay(new Date());
+  return parsed.getTime() > today.getTime() ? today : parsed;
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -42,7 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
     }
 
-    const plant = await prisma.plant.findUnique({ where: { id } });
+    const plant = await getPlantById(id);
     if (!plant) {
       return NextResponse.json(
         { error: "Planta no encontrada" },

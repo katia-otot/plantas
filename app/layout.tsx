@@ -10,8 +10,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Plantas del patio",
-  description: "Control de riego, cuidados e historial de plantas del patio",
+  title: "Anthos",
+  description: "Riego, cuidados e historial de las plantas del patio",
 };
 
 export const viewport: Viewport = {

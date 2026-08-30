@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Pajarito</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="soil line" d="M17 78c12-8 31-8 43 0z"/>
+<path class="green line" d="M27 76c14-8 25-9 34-6-8 10-20 14-34 6z"/>
+<path class="line none" d="M31 73c10-1 18 0 25 3"/>
+<g transform-origin="60px 42px">
+  <animateTransform attributeName="transform" type="rotate" values="0 60 42;4 60 42;0 60 42;-3 60 42;0 60 42" dur="2.2s" repeatCount="indefinite"/>
+  <ellipse cx="59" cy="42" rx="18" ry="14" class="blue2 line"/>
+  <path class="blue line" d="M48 42c5-10 17-16 29-14-1 12-10 20-24 19z"/>
+  <path class="cream line" d="M63 49c-8 0-15-6-15-15 8 0 15 6 15 15z"/>
+  <circle cx="66" cy="38" r="2.5" fill="#3D3A36"/>
+  <path class="orange line" d="M77 42h8l-6 5z"/>
+  <path class="thin none" d="M44 39c-4-6-3-14 4-18"/>
+  <path class="thin none" d="M46 48c-2 6-1 12 3 17"/>
+  <path class="thin none" d="M58 56l-2 10M66 56l1 10"/>
+</g>
+<g class="yellow">
+  <circle cx="23" cy="29" r="2"><animate attributeName="r" values="1;3;1" dur="1.6s" repeatCount="indefinite"/></circle>
+  <circle cx="34" cy="19" r="2"><animate attributeName="r" values="1;2.5;1" dur="1.9s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

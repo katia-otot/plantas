@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#047857" />
+    <title>Avisos · Anthos</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #ecfdf5;
+        --ink: #064e3b;
+        --muted: #047857cc;
+        --card: #ffffff;
+        --accent: #047857;
+        --accent-ink: #fff;
+        --line: #064e3b1a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(ellipse 80% 50% at 20% 0%, #a7f3d0 0%, transparent 55%),
+          radial-gradient(ellipse 70% 40% at 100% 100%, #6ee7b7 0%, transparent 50%),
+          var(--bg);
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+      }
+      main {
+        width: min(26rem, 100%);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        box-shadow: 0 18px 40px #064e3b14;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0.65rem 0 0;
+        line-height: 1.45;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .actions {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 1.25rem;
+      }
+      button,
+      a.btn {
+        appearance: none;
+        border: 0;
+        border-radius: 0.9rem;
+        padding: 0.95rem 1rem;
+        font: inherit;
+        font-weight: 650;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+      button.primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      a.btn.secondary,
+      button.secondary {
+        background: #ecfdf5;
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      #status {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        min-height: 1.25em;
+      }
+      #status.error {
+        color: #b91c1c;
+      }
+      #status.ok {
+        color: #047857;
+      }
+      .hint {
+        margin-top: 1rem;
+        font-size: 0.8rem;
+        color: #065f4688;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Avisos del patio</h1>
+      <p>
+        Activá las notificaciones acá (página segura). Cuando llegue un aviso, al
+        tocarlo se abre Anthos.
+      </p>
+      <div class="actions">
+        <button id="enable" class="primary" type="button">
+          Activar avisos en este celular
+        </button>
+        <a
+          id="open-app"
+          class="btn secondary"
+          href="http://149.50.156.136/plantas"
+          >Abrir Anthos</a
+        >
+      </div>
+      <p id="status" aria-live="polite"></p>
+      <p class="hint">
+        Usá Chrome en Android. Esta página solo gestiona avisos; tus plantas
+        siguen en el link de siempre. Para entrar a Anthos con Google usá
+        <a href="/auth-login.html">auth-login.html</a> (o el botón de login en la
+        app).
+      </p>
+    </main>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+      import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+      import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js";
+      import { firebaseConfig, vapidKey, plantasUrl } from "./firebase-config.js";
+
+      const statusEl = document.getElementById("status");
+      const enableBtn = document.getElementById("enable");
+      const openApp = document.getElementById("open-app");
+      openApp.href = plantasUrl;
+
+      function setStatus(text, kind) {
+        statusEl.textContent = text;
+        statusEl.className = kind || "";
+      }
+
+      if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("YOUR_")) {
+        enableBtn.disabled = true;
+        setStatus(
+          "Falta configurar Firebase (firebase-config.js). Pedile a quien administra la app que complete el deploy.",
+          "error",
+        );
+      } else if (localStorage.getItem("plantasFcmToken")) {
+        setStatus("Este celular ya tiene avisos activos.", "ok");
+        enableBtn.textContent = "Reactivar / actualizar";
+      }
+
+      enableBtn.addEventListener("click", async () => {
+        enableBtn.disabled = true;
+        setStatus("Pidiendo permiso…");
+
+        try {
+          if (!(await isSupported())) {
+            throw new Error("Este navegador no soporta FCM. Probá Chrome en Android.");
+          }
+
+          const permission = await Notification.requestPermission();
+          if (permission !== "granted") {
+            throw new Error("Permiso denegado. Activá notificaciones en Chrome.");
+          }
+
+          const app = initializeApp(firebaseConfig);
+          const messaging = getMessaging(app);
+          const registration = await navigator.serviceWorker.register(
+            "/firebase-messaging-sw.js",
+          );
+
+          const token = await getToken(messaging, {
+            vapidKey,
+            serviceWorkerRegistration: registration,
+          });
+
+          if (!token) {
+            throw new Error("No se obtuvo token FCM.");
+          }
+
+          const db = getFirestore(app);
+          const id = await hashToken(token);
+          await setDoc(
+            doc(db, "fcmTokens", id),
+            {
+              token,
+              userAgent: navigator.userAgent.slice(0, 300),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
+
+          localStorage.setItem("plantasFcmToken", token);
+          setStatus(
+            "Listo. Vas a recibir avisos de Hoy. Volviendo a Anthos…",
+            "ok",
+          );
+          const returnUrl = new URL(plantasUrl);
+          returnUrl.searchParams.set("avisos", "ok");
+          window.setTimeout(() => {
+            window.location.href = returnUrl.href;
+          }, 900);
+        } catch (error) {
+          console.error(error);
+          setStatus(
+            error instanceof Error ? error.message : "No se pudieron activar los avisos",
+            "error",
+          );
+        } finally {
+          enableBtn.disabled = false;
+        }
+      });
+
+      async function hashToken(token) {
+        const data = new TextEncoder().encode(token);
+        const digest = await crypto.subtle.digest("SHA-256", data);
+        return [...new Uint8Array(digest)]
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("")
+          .slice(0, 40);
+      }
+    </script>
+  </body>
+</html>

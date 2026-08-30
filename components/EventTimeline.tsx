@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
-import { formatDateTime } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { withBasePath } from "@/lib/base-path";
 import { EVENT_LABELS, type CareEventType } from "@/lib/types";
 
 const INITIAL_VISIBLE = 3;
+export const GLOBAL_INITIAL_VISIBLE = 20;
 
 interface TimelineEvent {
   id: string;
@@ -14,25 +16,43 @@ interface TimelineEvent {
   happenedAt: Date | string;
   notes?: string | null;
   photos: Array<{ id: string; path: string; caption?: string | null }>;
+  plant?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 function TimelineEntry({ event }: { event: TimelineEvent }) {
+  const isGlobalRain = event.type === "rain_skip" && !event.plant;
+  const title = isGlobalRain
+    ? event.notes?.trim() ||
+      (EVENT_LABELS[event.type as CareEventType] ?? event.type)
+    : (EVENT_LABELS[event.type as CareEventType] ?? event.type);
+
   return (
     <article className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-emerald-950">
-          {EVENT_LABELS[event.type as CareEventType] ?? event.type}
-        </h3>
-        <time className="text-xs text-emerald-900/60">
-          {formatDateTime(event.happenedAt)}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {event.plant ? (
+            <Link
+              href={`/plants/${event.plant.id}`}
+              className="text-sm font-medium text-emerald-700 hover:underline"
+            >
+              {event.plant.name}
+            </Link>
+          ) : null}
+          <h3 className="font-semibold text-emerald-950">{title}</h3>
+        </div>
+        <time className="shrink-0 text-xs text-emerald-900/60">
+          {formatDate(event.happenedAt)}
         </time>
       </div>
 
-      {event.notes && (
+      {event.notes && !isGlobalRain ? (
         <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-900/80">
           {event.notes}
         </p>
-      )}
+      ) : null}
 
       {event.photos.length > 0 && (
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -42,7 +62,7 @@ function TimelineEntry({ event }: { event: TimelineEvent }) {
               className="relative aspect-square overflow-hidden rounded-xl bg-emerald-50"
             >
               <Image
-                    src={withBasePath(photo.path)}
+                src={withBasePath(photo.path)}
                 alt={photo.caption ?? "Foto del historial"}
                 fill
                 className="object-cover"
@@ -56,7 +76,13 @@ function TimelineEntry({ event }: { event: TimelineEvent }) {
   );
 }
 
-export function EventTimeline({ events }: { events: TimelineEvent[] }) {
+export function EventTimeline({
+  events,
+  initialVisible = INITIAL_VISIBLE,
+}: {
+  events: TimelineEvent[];
+  initialVisible?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   if (events.length === 0) {
@@ -67,9 +93,9 @@ export function EventTimeline({ events }: { events: TimelineEvent[] }) {
     );
   }
 
-  const hasMore = events.length > INITIAL_VISIBLE;
-  const visibleEvents = expanded ? events : events.slice(0, INITIAL_VISIBLE);
-  const hiddenCount = events.length - INITIAL_VISIBLE;
+  const hasMore = events.length > initialVisible;
+  const visibleEvents = expanded ? events : events.slice(0, initialVisible);
+  const hiddenCount = events.length - initialVisible;
 
   return (
     <div className="space-y-4">

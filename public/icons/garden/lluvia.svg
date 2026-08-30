@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Lluvia</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<g transform-origin="48px 38px">
+  <animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="2s" repeatCount="indefinite"/>
+  <path class="blue2 line" d="M25 52c-8 0-12-6-10-13 1-6 7-10 13-9 3-10 18-14 26-5 7-4 17 1 18 10 9 1 12 15 2 17z"/>
+</g>
+<g fill="#67C9E8">
+  <path d="M30 59c0 6-8 6-8 0 0-3 4-8 4-8s4 5 4 8z">
+    <animateTransform attributeName="transform" type="translate" values="0 -4;0 14" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" dur="1s" repeatCount="indefinite"/>
+  </path>
+  <path d="M50 60c0 6-8 6-8 0 0-3 4-8 4-8s4 5 4 8z">
+    <animateTransform attributeName="transform" type="translate" values="0 -3;0 15" dur="1.05s" begin=".25s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" dur="1.05s" begin=".25s" repeatCount="indefinite"/>
+  </path>
+  <path d="M70 58c0 6-8 6-8 0 0-3 4-8 4-8s4 5 4 8z">
+    <animateTransform attributeName="transform" type="translate" values="0 -2;0 16" dur=".95s" begin=".5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" dur=".95s" begin=".5s" repeatCount="indefinite"/>
+  </path>
+</g>
+
+</svg>

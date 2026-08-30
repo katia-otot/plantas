@@ -24,12 +24,27 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
 
   try {
-    const body = await request.json();
-    if (!body.name?.trim()) {
+    const body = (await request.json()) as Record<string, unknown>;
+
+    if (
+      Object.prototype.hasOwnProperty.call(body, "name") &&
+      (typeof body.name !== "string" || !body.name.trim())
+    ) {
       return NextResponse.json(
         { error: "El nombre es obligatorio" },
         { status: 400 },
       );
+    }
+
+    if (Object.keys(body).length === 0) {
+      const existing = await getPlantById(id);
+      if (!existing) {
+        return NextResponse.json(
+          { error: "Planta no encontrada" },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json(existing);
     }
 
     const plant = await updatePlant(id, body);
@@ -37,7 +52,12 @@ export async function PATCH(request: Request, context: RouteContext) {
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "No se pudo actualizar la planta" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "No se pudo actualizar la planta",
+      },
       { status: 500 },
     );
   }

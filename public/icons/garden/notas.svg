@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Notas</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<rect x="20" y="18" width="42" height="56" rx="8" class="cream line"/>
+<path class="pink line" d="M20 30h42V23a5 5 0 0 0-5-5H25a5 5 0 0 0-5 5z"/>
+<g class="thin none">
+  <path d="M29 41h24"/>
+  <path d="M29 50h18"/>
+  <path d="M29 59h22"/>
+</g>
+<g transform-origin="70px 61px">
+  <animateTransform attributeName="transform" type="rotate" values="0 70 61;-8 70 61;0 70 61" dur="1.8s" repeatCount="indefinite"/>
+  <path class="yellow line" d="M63 41l15 15-8 8-15-15z"/>
+  <path class="orange line" d="M58 66l8-2-6-6z"/>
+  <path class="line none" d="M74 52l4-4"/>
+</g>
+<path class="green line" d="M62 76c7-5 15-5 20 0-6 4-14 4-20 0z"/>
+<path class="line none" d="M66 76c4-1 8-1 12 0"/>
+
+</svg>

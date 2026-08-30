@@ -3,7 +3,10 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FrostSoilFields } from "@/components/FrostSoilFields";
+import { PLANT_STATUS_STYLES } from "@/components/PlantStatusBadge";
 import { TreatmentListEditor } from "@/components/TreatmentListEditor";
+import { PhotoPickerButtons } from "@/components/PhotoPickerButtons";
 import { uploadPhotos } from "@/lib/client-api";
 import { withBasePath } from "@/lib/base-path";
 import { toInputDate } from "@/lib/format";
@@ -12,6 +15,11 @@ import {
   migrateLegacyPestNotesToTreatments,
   type PlantTreatment,
 } from "@/lib/treatments";
+import {
+  PLANT_STATUSES,
+  PLANT_STATUS_LABELS,
+  type PlantStatus,
+} from "@/lib/types";
 
 export interface PlantFormValues {
   id?: string;
@@ -20,20 +28,26 @@ export interface PlantFormValues {
   location?: string | null;
   notes?: string | null;
   coverPhotoPath?: string | null;
+  status: PlantStatus;
   isIndoor: boolean;
+  quantity: number;
   waterSummerDays: number;
   waterWinterDays: number;
   rainPostponeDays: number;
-  needsPruning: boolean;
-  nextPruneAt?: string | null;
-  pruneNotes?: string | null;
   careTreatments?: PlantTreatment[];
   lastWateredAt?: string | null;
+  frostResistance?: string | null;
+  soilType?: string | null;
+  observations?: string | null;
 }
 
 interface PlantFormProps {
   initialValues?: Partial<PlantFormValues> & { pestNotes?: string | null };
   submitLabel: string;
+  header?: {
+    eyebrow: string;
+    title: string;
+  };
 }
 
 const defaultValues: PlantFormValues = {
@@ -42,20 +56,59 @@ const defaultValues: PlantFormValues = {
   location: "",
   notes: "",
   coverPhotoPath: null,
+  status: "alta",
   isIndoor: false,
+  quantity: 1,
   waterSummerDays: 2,
   waterWinterDays: 5,
   rainPostponeDays: 2,
-  needsPruning: false,
-  nextPruneAt: "",
-  pruneNotes: "",
   careTreatments: defaultNewPlantTreatments(),
   lastWateredAt: "",
+  frostResistance: "",
+  soilType: "",
+  observations: "",
 };
 
-export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
-  const router = useRouter();
-  const [values, setValues] = useState<PlantFormValues>({
+function normalizeFormPayload(values: PlantFormValues) {
+  const careTreatments = (values.careTreatments ?? [])
+    .map((treatment) => ({
+      ...treatment,
+      label: treatment.label?.trim() || undefined,
+      products: treatment.products.map((product) => product.trim()).filter(Boolean),
+    }))
+    .filter(
+      (treatment) =>
+        treatment.products.length > 0 &&
+        (treatment.type !== "otro" || treatment.label),
+    );
+
+  return {
+    name: values.name.trim(),
+    species: values.species?.trim() || null,
+    notes: null,
+    coverPhotoPath: values.coverPhotoPath || null,
+    status: values.status,
+    isIndoor: values.isIndoor,
+    quantity: values.quantity,
+    waterSummerDays: values.waterSummerDays,
+    waterWinterDays: values.waterWinterDays,
+    rainPostponeDays: values.rainPostponeDays,
+    careTreatments,
+    lastWateredAt: values.lastWateredAt || null,
+    frostResistance: values.frostResistance?.trim() || null,
+    soilType: values.soilType?.trim() || null,
+    observations: values.observations?.trim() || null,
+  };
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function buildInitialForm(
+  initialValues?: Partial<PlantFormValues> & { pestNotes?: string | null },
+): PlantFormValues {
+  return {
     ...defaultValues,
     ...initialValues,
     careTreatments:
@@ -66,13 +119,22 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
             initialValues?.pestNotes ?? null,
           )
         : defaultNewPlantTreatments()),
-    nextPruneAt: initialValues?.nextPruneAt
-      ? toInputDate(initialValues.nextPruneAt)
-      : "",
     lastWateredAt: initialValues?.lastWateredAt
       ? toInputDate(initialValues.lastWateredAt)
       : "",
-  });
+  };
+}
+
+export function PlantForm({
+  initialValues,
+  submitLabel,
+  header,
+}: PlantFormProps) {
+  const router = useRouter();
+  const [values, setValues] = useState(() => buildInitialForm(initialValues));
+  const [baseline] = useState(() =>
+    normalizeFormPayload(buildInitialForm(initialValues)),
+  );
   const [saving, setSaving] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
@@ -110,38 +172,49 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
 
     try {
       setSaving(true);
-      const payload = {
-        ...values,
-        species: values.species || null,
-        location: values.location || null,
-        notes: values.notes || null,
-        careTreatments: (values.careTreatments ?? [])
-          .map((treatment) => ({
-            ...treatment,
-            label: treatment.label?.trim() || undefined,
-            products: treatment.products.map((product) => product.trim()).filter(Boolean),
-          }))
-          .filter(
-            (treatment) =>
-              treatment.products.length > 0 &&
-              (treatment.type !== "otro" || treatment.label),
-          ),
-        nextPruneAt: values.needsPruning ? values.nextPruneAt || null : null,
-        pruneNotes: values.needsPruning ? values.pruneNotes?.trim() || null : null,
-        lastWateredAt: values.lastWateredAt || null,
-      };
+      const next = normalizeFormPayload(values);
+
+      if (!values.id) {
+        const response = await fetch(withBasePath("/api/plants"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        });
+        if (!response.ok) {
+          throw new Error("Error al guardar");
+        }
+        const plant = (await response.json()) as { id: string };
+        router.push(`/plants/${plant.id}`);
+        router.refresh();
+        return;
+      }
+
+      const patch: Record<string, unknown> = {};
+      for (const key of Object.keys(next) as Array<keyof typeof next>) {
+        if (!sameValue(next[key], baseline[key])) {
+          patch[key] = next[key];
+        }
+      }
+
+      if (Object.keys(patch).length === 0) {
+        router.push(`/plants/${values.id}`);
+        return;
+      }
 
       const response = await fetch(
-        withBasePath(values.id ? `/api/plants/${values.id}` : "/api/plants"),
+        withBasePath(`/api/plants/${values.id}`),
         {
-          method: values.id ? "PATCH" : "POST",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(patch),
         },
       );
 
       if (!response.ok) {
-        throw new Error("Error al guardar");
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error || "Error al guardar");
       }
 
       const plant = (await response.json()) as { id: string };
@@ -149,14 +222,48 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("No se pudo guardar la planta");
+      alert(
+        error instanceof Error ? error.message : "No se pudo guardar la planta",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="space-y-5">
+      {header ? (
+        <header>
+          <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
+            {header.eyebrow}
+          </p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <h1 className="min-w-0 text-3xl font-bold leading-tight text-emerald-950">
+              {header.title}
+            </h1>
+            <label className="shrink-0">
+              <span className="sr-only">Estado</span>
+              <select
+                value={values.status}
+                aria-label="Estado de la planta"
+                title="Estado de la planta"
+                onChange={(event) =>
+                  updateField("status", event.target.value as PlantStatus)
+                }
+                className={`appearance-none rounded-xl border-0 px-3 py-2 text-sm font-semibold outline-none ring-emerald-500 focus:ring-2 ${PLANT_STATUS_STYLES[values.status]}`}
+              >
+                {PLANT_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {PLANT_STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </header>
+      ) : null}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
       <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
           Datos básicos
@@ -164,7 +271,9 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
 
         <div className="mt-4 space-y-4">
           <label className="block">
-            <span className="text-sm font-medium text-emerald-950">Nombre *</span>
+            <span className="text-sm font-medium text-emerald-950">
+              Nombre *
+            </span>
             <input
               required
               value={values.name}
@@ -184,16 +293,6 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
             />
           </label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-emerald-950">Ubicación</span>
-            <input
-              value={values.location ?? ""}
-              onChange={(event) => updateField("location", event.target.value)}
-              className="mt-1 w-full rounded-xl border border-emerald-900/15 px-3 py-3 text-base outline-none ring-emerald-500 focus:ring-2"
-              placeholder="Ej. Patio trasero, maceta grande"
-            />
-          </label>
-
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -209,21 +308,35 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-emerald-950">Notas</span>
-            <textarea
-              value={values.notes ?? ""}
-              onChange={(event) => updateField("notes", event.target.value)}
-              rows={3}
+            <span className="text-sm font-medium text-emerald-950">Cantidad</span>
+            <input
+              type="number"
+              min={1}
+              value={values.quantity}
+              onChange={(event) =>
+                updateField("quantity", Number(event.target.value) || 1)
+              }
               className="mt-1 w-full rounded-xl border border-emerald-900/15 px-3 py-3 text-base outline-none ring-emerald-500 focus:ring-2"
-              placeholder="Observaciones generales"
             />
+            <p className="mt-1 text-xs text-emerald-900/60">
+              Cuántas plantas iguales hay (columna V del Excel).
+            </p>
           </label>
+
+          <FrostSoilFields
+            frostResistance={values.frostResistance ?? ""}
+            soilType={values.soilType ?? ""}
+            observations={values.observations ?? ""}
+            onFrostChange={(value) => updateField("frostResistance", value)}
+            onSoilChange={(value) => updateField("soilType", value)}
+            onObservationsChange={(value) => updateField("observations", value)}
+          />
 
           <div>
             <span className="text-sm font-medium text-emerald-950">
               Foto de portada
             </span>
-            <div className="mt-2 flex items-center gap-3">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-emerald-50">
                 {values.coverPhotoPath ? (
                   <Image
@@ -239,15 +352,12 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
                   </div>
                 )}
               </div>
-              <label className="cursor-pointer rounded-xl border border-emerald-900/15 px-4 py-3 text-sm font-medium text-emerald-900">
-                {uploadingCover ? "Subiendo..." : "Elegir foto"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => handleCoverUpload(event.target.files)}
-                />
-              </label>
+              <PhotoPickerButtons
+                disabled={uploadingCover}
+                galleryLabel={uploadingCover ? "Subiendo..." : "Galería"}
+                cameraLabel={uploadingCover ? "Subiendo..." : "Cámara"}
+                onFiles={(files) => void handleCoverUpload(files)}
+              />
             </div>
           </div>
         </div>
@@ -286,7 +396,7 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
               className="mt-1 w-full rounded-xl border border-emerald-900/15 px-3 py-3 text-base outline-none ring-emerald-500 focus:ring-2"
             />
           </label>
-          <label className="block">
+          <label className="col-span-2 block">
             <span className="text-sm font-medium text-emerald-950">
               Último riego
             </span>
@@ -310,8 +420,8 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
           Tratamientos
         </h2>
         <p className="mt-2 text-sm text-emerald-900/70">
-          Fertilizante viene precargado. También podés sumar anti-bichos,
-          anti-hongos u otro, cada uno con sus productos.
+          Fertilizante viene precargado. También podés sumar poda, anti-bichos,
+          anti-hongos u otro.
         </p>
         <div className="mt-4">
           <TreatmentListEditor
@@ -323,60 +433,6 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
-          Otros cuidados
-        </h2>
-        <div className="mt-4 space-y-4">
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={values.needsPruning}
-              onChange={(event) =>
-                updateField("needsPruning", event.target.checked)
-              }
-              className="h-5 w-5 rounded border-emerald-900/20"
-            />
-            <span className="text-sm font-medium text-emerald-950">
-              Necesita poda
-            </span>
-          </label>
-
-          {values.needsPruning && (
-            <>
-              <label className="block">
-                <span className="text-sm font-medium text-emerald-950">
-                  Próxima poda
-                </span>
-                <input
-                  type="date"
-                  value={values.nextPruneAt ?? ""}
-                  onChange={(event) =>
-                    updateField("nextPruneAt", event.target.value)
-                  }
-                  className="mt-1 w-full rounded-xl border border-emerald-900/15 px-3 py-3 text-base outline-none ring-emerald-500 focus:ring-2"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-emerald-950">
-                  Detalle de la poda
-                </span>
-                <textarea
-                  value={values.pruneNotes ?? ""}
-                  onChange={(event) =>
-                    updateField("pruneNotes", event.target.value)
-                  }
-                  rows={2}
-                  className="mt-1 w-full rounded-xl border border-emerald-900/15 px-3 py-3 text-base outline-none ring-emerald-500 focus:ring-2"
-                  placeholder="Ej. sacar ramas secas, formar copa, bajar altura..."
-                />
-              </label>
-            </>
-          )}
-        </div>
-      </section>
-
       <button
         type="submit"
         disabled={saving}
@@ -385,5 +441,6 @@ export function PlantForm({ initialValues, submitLabel }: PlantFormProps) {
         {saving ? "Guardando..." : submitLabel}
       </button>
     </form>
+    </div>
   );
 }

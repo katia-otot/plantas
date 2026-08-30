@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">pH del suelo</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="soil line" d="M12 70c18-11 54-11 72 0v12H12z"/>
+<g transform-origin="38px 68px">
+  <animateTransform attributeName="transform" type="rotate" values="-2 38 68;2 38 68;-2 38 68" dur="2.1s" repeatCount="indefinite"/>
+  <rect x="31" y="20" width="14" height="50" rx="7" class="cream line"/>
+  <circle cx="38" cy="57" r="7" class="purple line"/>
+  <path class="line none" d="M38 27v25"/>
+</g>
+<g>
+  <rect x="53" y="25" width="29" height="24" rx="7" class="green2 line"/>
+  <text x="67.5" y="41" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#3D3A36">pH</text>
+  <animateTransform attributeName="transform" type="scale" values="1;1.05;1" dur="1.8s" repeatCount="indefinite"/>
+</g>
+<circle cx="62" cy="60" r="4" class="red"/>
+<circle cx="71" cy="60" r="4" class="yellow"/>
+<circle cx="80" cy="60" r="4" class="green"/>
+
+</svg>

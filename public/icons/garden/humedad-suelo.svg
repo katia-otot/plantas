@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Humedad del suelo</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="soil line" d="M13 61c16-8 54-8 70 0v20H13z"/>
+<path class="line none" d="M49 76V46"/>
+<path class="green line" d="M48 56c-10 0-15-6-15-13 9 0 14 4 15 13z"/>
+<path class="green2 line" d="M51 56c10-1 14-7 13-14-9 1-13 6-13 14z"/>
+<path class="blue line" d="M75 23c0 10-14 10-14 0 0-6 7-14 7-14s7 8 7 14z">
+  <animateTransform attributeName="transform" type="translate" values="0 -2;0 2;0 -2" dur="1.8s" repeatCount="indefinite"/>
+</path>
+<g>
+  <circle cx="25" cy="68" r="3" class="blue2"><animate attributeName="r" values="2;4;2" dur="1.4s" repeatCount="indefinite"/></circle>
+  <circle cx="71" cy="70" r="3" class="blue2"><animate attributeName="r" values="2;4;2" dur="1.4s" begin=".4s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

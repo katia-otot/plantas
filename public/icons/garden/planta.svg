@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Planta</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<ellipse cx="48" cy="79" rx="27" ry="8" class="soil line"/>
+<g transform-origin="48px 76px">
+  <animateTransform attributeName="transform" type="scale" values="1 1;1.03 1.06;1 1" dur="2.2s" repeatCount="indefinite" additive="sum"/>
+  <path class="line none" d="M48 75V37"/>
+  <path class="green line" d="M47 53c-13 0-20-8-20-18 12 0 19 6 20 18z"/>
+  <path class="green2 line" d="M50 51c13-1 19-9 18-19-12 1-18 7-18 19z"/>
+  <path class="green line" d="M48 39c-7-3-10-9-7-16 7 3 10 9 7 16z"/>
+</g>
+<g class="yellow">
+  <circle cx="73" cy="22" r="3"><animate attributeName="r" values="2;4;2" dur="1.4s" repeatCount="indefinite"/></circle>
+  <circle cx="22" cy="32" r="2"><animate attributeName="r" values="1;3;1" dur="1.7s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getGardenSettings, getPlantCareTreatments, listPlants } from "@/lib/plants";
+import {
+  getGardenSettings,
+  getPlantCareTreatments,
+  listActivePlants,
+} from "@/lib/plants";
+import { toPlantCareSchedule } from "@/lib/care-schedule";
 import { getEffectiveSeason, getPlantDueTasks, getSeason } from "@/lib/schedule";
 import type { DueStatus, PlantTask } from "@/lib/types";
 
@@ -11,7 +16,7 @@ function statusPriority(status: DueStatus): number {
 
 export async function GET() {
   const [plants, gardenSettings] = await Promise.all([
-    listPlants(),
+    listActivePlants(),
     getGardenSettings(),
   ]);
   const today = new Date();
@@ -36,6 +41,7 @@ export async function GET() {
         status: task.status,
         coverPhotoPath: plant.coverPhotoPath,
         careTreatments: getPlantCareTreatments(plant),
+        schedule: toPlantCareSchedule(plant),
       });
     }
   }

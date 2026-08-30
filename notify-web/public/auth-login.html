@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#047857" />
+    <title>Entrar · Anthos</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #ecfdf5;
+        --ink: #064e3b;
+        --muted: #047857cc;
+        --card: #ffffff;
+        --accent: #047857;
+        --accent-ink: #fff;
+        --line: #064e3b1a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(ellipse 80% 50% at 20% 0%, #a7f3d0 0%, transparent 55%),
+          radial-gradient(ellipse 70% 40% at 100% 100%, #6ee7b7 0%, transparent 50%),
+          var(--bg);
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+      }
+      main {
+        width: min(26rem, 100%);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        box-shadow: 0 18px 40px #064e3b14;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0.65rem 0 0;
+        line-height: 1.45;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .actions {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 1.25rem;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 0.9rem;
+        padding: 0.95rem 1rem;
+        font: inherit;
+        font-weight: 650;
+        text-align: center;
+        cursor: pointer;
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      #status {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        min-height: 1.25em;
+      }
+      #status.error {
+        color: #b91c1c;
+      }
+      #status.ok {
+        color: #047857;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Iniciar sesión</h1>
+      <div class="actions">
+        <button id="google" type="button">Continuar con Google</button>
+      </div>
+      <p id="status" aria-live="polite"></p>
+    </main>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+      import {
+        getAuth,
+        GoogleAuthProvider,
+        signInWithPopup,
+        signInWithRedirect,
+        getRedirectResult,
+      } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+      import { firebaseConfig, plantasUrl } from "./firebase-config.js";
+
+      const statusEl = document.getElementById("status");
+      const googleBtn = document.getElementById("google");
+      const params = new URLSearchParams(window.location.search);
+      const returnParam = params.get("return");
+
+      function setStatus(text, kind) {
+        statusEl.textContent = text;
+        statusEl.className = kind || "";
+      }
+
+      function isAllowedReturn(urlString) {
+        try {
+          const url = new URL(urlString);
+          if (url.protocol !== "http:" && url.protocol !== "https:") {
+            return false;
+          }
+          const host = url.hostname;
+          if (host === "localhost" || host === "127.0.0.1") {
+            return true;
+          }
+          // VPS Anthos lives under /plantas — never allow bare host root (PixelWeb).
+          if (host === "149.50.156.136") {
+            const path = url.pathname || "/";
+            return path === "/plantas" || path.startsWith("/plantas/");
+          }
+          if (host.endsWith("plantas-patio.web.app")) {
+            return true;
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      }
+
+      function resolveReturnUrl() {
+        if (returnParam && isAllowedReturn(returnParam)) {
+          return new URL(returnParam);
+        }
+        // plantasUrl is .../plantas → login at .../plantas/login
+        const base = new URL(plantasUrl);
+        return new URL(
+          `${base.pathname.replace(/\/$/, "")}/login`,
+          base.origin,
+        );
+      }
+
+      function redirectWithToken(idToken) {
+        const target = resolveReturnUrl();
+        target.hash = `firebase_id_token=${encodeURIComponent(idToken)}`;
+        window.location.replace(target.toString());
+      }
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      async function finishCredential(credential) {
+        const idToken = await credential.user.getIdToken();
+        setStatus("Listo. Volviendo a Anthos…", "ok");
+        redirectWithToken(idToken);
+      }
+
+      // Complete redirect flow if we bounced through Google.
+      getRedirectResult(auth)
+        .then(async (result) => {
+          if (result) {
+            googleBtn.disabled = true;
+            await finishCredential(result);
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+          setStatus(
+            error instanceof Error ? error.message : "Error al volver de Google",
+            "error",
+          );
+        });
+
+      googleBtn.addEventListener("click", async () => {
+        googleBtn.disabled = true;
+        setStatus("Abriendo Google…");
+        try {
+          const credential = await signInWithPopup(auth, provider);
+          await finishCredential(credential);
+        } catch (error) {
+          console.error(error);
+          const code = error && error.code ? String(error.code) : "";
+          if (
+            code === "auth/popup-blocked" ||
+            code === "auth/popup-closed-by-user" ||
+            code === "auth/cancelled-popup-request"
+          ) {
+            try {
+              setStatus("Redirigiendo a Google…");
+              await signInWithRedirect(auth, provider);
+              return;
+            } catch (redirectError) {
+              console.error(redirectError);
+            }
+          }
+          setStatus(
+            error instanceof Error ? error.message : "No se pudo iniciar sesión",
+            "error",
+          );
+          googleBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { BackupDownloadButton } from "@/components/BackupDownloadButton";
-import { PlantCard } from "@/components/PlantCard";
+import { ActionIcon } from "@/components/ActionIcon";
+import { PlantsList } from "@/components/PlantsList";
 import { getGardenSettings, listPlants } from "@/lib/plants";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,10 @@ export default async function PlantsPage() {
           <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
             Colección
           </p>
-          <h1 className="text-3xl font-bold text-emerald-950">Plantas</h1>
+          <div className="mt-1 flex items-center gap-3">
+            <ActionIcon name="planta" size={48} alt="" />
+            <h1 className="text-3xl font-bold text-emerald-950">Plantas</h1>
+          </div>
         </div>
         <Link
           href="/plants/new"
@@ -30,11 +33,14 @@ export default async function PlantsPage() {
 
       {plants.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-emerald-900/15 bg-white p-8 text-center">
-          <p className="text-lg font-semibold text-emerald-950">
+          <div className="flex justify-center">
+            <ActionIcon name="planta" size={64} alt="" />
+          </div>
+          <p className="mt-3 text-lg font-semibold text-emerald-950">
             Todavía no hay plantas
           </p>
           <p className="mt-2 text-sm text-emerald-900/70">
-            Empezá cargando las del patio con sus intervalos de riego.
+            Empezá cargando las del patio, o importá un Excel desde el menú.
           </p>
           <Link
             href="/plants/new"
@@ -44,28 +50,12 @@ export default async function PlantsPage() {
           </Link>
         </section>
       ) : (
-        <section className="space-y-3">
-          {plants.map((plant) => (
-            <PlantCard
-              key={plant.id}
-              {...plant}
-              lastGlobalRainAt={gardenSettings.lastRainAt}
-              seasonOverride={gardenSettings.seasonOverride}
-            />
-          ))}
-        </section>
+        <PlantsList
+          plants={plants}
+          lastGlobalRainAt={gardenSettings.lastRainAt}
+          seasonOverride={gardenSettings.seasonOverride}
+        />
       )}
-
-      <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
-        <h2 className="font-semibold text-emerald-950">Respaldo</h2>
-        <p className="mt-1 text-sm text-emerald-900/70">
-          Descargá una copia con plantas, historial, lluvia y fotos para
-          guardarla en el celular o la compu.
-        </p>
-        <div className="mt-3">
-          <BackupDownloadButton />
-        </div>
-      </section>
     </main>
   );
 }

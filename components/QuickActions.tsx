@@ -3,178 +3,121 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ActionIcon, type ActionIconName } from "@/components/ActionIcon";
-import { performAction } from "@/lib/client-api";
 import {
-  getTreatmentLabel,
-  isPestTreatmentType,
-  type PlantTreatment,
-  type TreatmentType,
-} from "@/lib/treatments";
-import type { CareEventType } from "@/lib/types";
+  ScheduleCareSheet,
+  type ScheduleCareKind,
+} from "@/components/ScheduleCareSheet";
+import type { PlantCareSchedule } from "@/lib/care-schedule";
+import type { PlantTreatment } from "@/lib/treatments";
+
+export type QuickActionsSchedule = PlantCareSchedule;
 
 interface QuickActionsProps {
   plantId: string;
   careTreatments?: PlantTreatment[];
+  schedule?: QuickActionsSchedule | null;
   compact?: boolean;
 }
 
-type QuickAction =
-  | {
-      kind: "action";
-      action: CareEventType;
-      label: string;
-      tone: string;
-      key: string;
-      icon: ActionIconName;
-    }
-  | {
-      kind: "treatment";
-      treatmentType: TreatmentType;
-      treatmentLabel?: string;
-      label: string;
-      tone: string;
-      key: string;
-      icon: ActionIconName;
-    };
+type ScheduleAction = {
+  scheduleKind: ScheduleCareKind;
+  label: string;
+  compactLabel: string;
+  tone: string;
+  key: string;
+  icon: ActionIconName;
+};
 
-const baseActions: QuickAction[] = [
+const scheduleActions: ScheduleAction[] = [
   {
-    kind: "action",
-    action: "watering",
-    label: "Regué",
-    tone: "bg-sky-600 hover:bg-sky-700",
-    key: "action:watering",
-    icon: "water-leaf",
+    scheduleKind: "water",
+    label: "Riego",
+    compactLabel: "Regar",
+    tone: "border border-sky-200 bg-sky-50 text-sky-950 hover:bg-sky-100",
+    key: "schedule:water",
+    icon: "regar",
   },
   {
-    kind: "action",
-    action: "fertilizer",
-    label: "Fertilicé",
-    tone: "bg-amber-600 hover:bg-amber-700",
-    key: "action:fertilizer",
-    icon: "supply-bag",
+    scheduleKind: "fertilizer",
+    label: "Fertilizante",
+    compactLabel: "Fertilizar",
+    tone:
+      "border border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100",
+    key: "schedule:fertilizer",
+    icon: "fertilizante",
   },
   {
-    kind: "action",
-    action: "prune",
-    label: "Podé",
-    tone: "bg-emerald-700 hover:bg-emerald-800",
-    key: "action:prune",
-    icon: "prune",
+    scheduleKind: "prune",
+    label: "Poda",
+    compactLabel: "Poda",
+    tone:
+      "border border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100",
+    key: "schedule:prune",
+    icon: "poda",
+  },
+  {
+    scheduleKind: "treatment",
+    label: "Tratamiento",
+    compactLabel: "Tratar",
+    tone:
+      "border border-orange-200 bg-orange-50 text-orange-950 hover:bg-orange-100",
+    key: "schedule:treatment",
+    icon: "tratamiento-plagas",
   },
 ];
-
-const treatmentTones: Record<Exclude<TreatmentType, "fertilizante">, string> = {
-  "anti-bichos": "bg-orange-600 hover:bg-orange-700",
-  "anti-hongos": "bg-orange-500 hover:bg-orange-600",
-  otro: "bg-orange-400 hover:bg-orange-500",
-};
-
-const treatmentIcons: Record<Exclude<TreatmentType, "fertilizante">, ActionIconName> = {
-  "anti-bichos": "inspect",
-  "anti-hongos": "flask-leaf",
-  otro: "cupped-hands",
-};
-
-function buildTreatmentActions(treatments: PlantTreatment[]): QuickAction[] {
-  return treatments
-    .filter((treatment) => isPestTreatmentType(treatment.type))
-    .map((treatment, index) => {
-      const label = getTreatmentLabel(treatment);
-      const type = treatment.type as Exclude<TreatmentType, "fertilizante">;
-
-      return {
-        kind: "treatment" as const,
-        treatmentType: treatment.type,
-        treatmentLabel: treatment.type === "otro" ? label : undefined,
-        label,
-        tone: treatmentTones[type],
-        key: `treatment:${treatment.type}:${index}:${label}`,
-        icon: treatmentIcons[type],
-      };
-    });
-}
 
 export function QuickActions({
   plantId,
   careTreatments = [],
+  schedule = null,
   compact = false,
 }: QuickActionsProps) {
   const router = useRouter();
-  const [loadingKey, setLoadingKey] = useState<string | null>(null);
-  const actions = [...baseActions, ...buildTreatmentActions(careTreatments)];
-
-  async function handleAction(action: CareEventType, key: string) {
-    try {
-      setLoadingKey(key);
-      await performAction(plantId, action);
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo registrar la acción");
-    } finally {
-      setLoadingKey(null);
-    }
-  }
-
-  async function handleTreatment(
-    treatmentType: TreatmentType,
-    treatmentLabel: string | undefined,
-    key: string,
-  ) {
-    try {
-      setLoadingKey(key);
-      await performAction(plantId, "pest", {
-        treatmentType,
-        treatmentLabel,
-      });
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo registrar la acción");
-    } finally {
-      setLoadingKey(null);
-    }
-  }
+  const [scheduleKind, setScheduleKind] = useState<ScheduleCareKind | null>(
+    null,
+  );
 
   return (
-    <div
-      className={
-        compact
-          ? "grid grid-cols-2 gap-2"
-          : "grid grid-cols-2 gap-2 sm:grid-cols-3"
-      }
-    >
-      {actions.map((item) => {
-        const isLoading = loadingKey === item.key;
-
-        return (
+    <>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {scheduleActions.map((item) => (
           <button
             key={item.key}
             type="button"
-            disabled={loadingKey !== null}
-            onClick={() =>
-              item.kind === "action"
-                ? handleAction(item.action, item.key)
-                : handleTreatment(
-                    item.treatmentType,
-                    item.treatmentLabel,
-                    item.key,
-                  )
-            }
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl px-3 py-3.5 text-sm font-semibold text-white transition disabled:opacity-60 ${item.tone}`}
+            onClick={() => setScheduleKind(item.scheduleKind)}
+            className={`flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl font-semibold transition ${
+              compact
+                ? `gap-1 px-2 py-2.5 text-xs leading-tight ${item.tone}`
+                : `gap-2 px-3 py-4 text-sm ${item.tone}`
+            }`}
           >
-            {isLoading ? (
-              "..."
-            ) : (
-              <>
-                <ActionIcon name={item.icon} size={compact ? 32 : 36} />
-                <span>{item.label}</span>
-              </>
-            )}
+            <ActionIcon name={item.icon} size={compact ? 36 : 56} alt="" />
+            <span className="w-full truncate text-center">
+              {compact ? item.compactLabel : item.label}
+            </span>
           </button>
-        );
-      })}
-    </div>
+        ))}
+      </div>
+
+      <ScheduleCareSheet
+        open={scheduleKind !== null}
+        kind={scheduleKind}
+        plantId={plantId}
+        careTreatments={careTreatments}
+        nextWateredAt={schedule?.nextWateredAt}
+        needsFertilizer={schedule?.needsFertilizer}
+        nextFertilizerAt={schedule?.nextFertilizerAt}
+        fertilizerNotes={schedule?.fertilizerNotes}
+        needsPruning={schedule?.needsPruning}
+        nextPruneAt={schedule?.nextPruneAt}
+        pruneNotes={schedule?.pruneNotes}
+        needsPest={schedule?.needsPest}
+        nextPestAt={schedule?.nextPestAt}
+        pestNotes={schedule?.pestNotes}
+        treatmentType={schedule?.treatmentType}
+        onClose={() => setScheduleKind(null)}
+        onSaved={() => router.refresh()}
+      />
+    </>
   );
 }

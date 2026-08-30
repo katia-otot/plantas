@@ -1,0 +1,10 @@
+{
+  "apiKey": "PEGAR_AQUI",
+  "authDomain": "TU_PROYECTO.firebaseapp.com",
+  "projectId": "TU_PROYECTO",
+  "storageBucket": "TU_PROYECTO.appspot.com",
+  "messagingSenderId": "PEGAR_AQUI",
+  "appId": "PEGAR_AQUI",
+  "vapidKey": "PEGAR_CLAVE_WEB_PUSH",
+  "plantasUrl": "http://149.50.156.136/plantas"
+}

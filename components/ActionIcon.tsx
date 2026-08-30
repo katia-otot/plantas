@@ -1,40 +1,36 @@
-import Image from "next/image";
-import { withBasePath } from "@/lib/base-path";
+import {
+  GARDEN_ICON_LABELS,
+  gardenIconSrc,
+  type GardenIconId,
+} from "@/lib/garden-icons";
 
-export type ActionIconName =
-  | "water-leaf"
-  | "supply-bag"
-  | "prune"
-  | "inspect"
-  | "flask-leaf"
-  | "cupped-hands"
-  | "water-cycle"
-  | "checklist"
-  | "hand-sprout"
-  | "potted";
+export type ActionIconName = GardenIconId;
 
 interface ActionIconProps {
   name: ActionIconName;
   className?: string;
-  /** Invert to white for dark colored buttons */
-  invert?: boolean;
   size?: number;
+  alt?: string;
 }
 
+/** Animated garden SVG icon. Prefer 40–48px; 56–64px on featured cards. */
 export function ActionIcon({
   name,
   className = "",
-  invert = true,
-  size = 22,
+  size = 48,
+  alt,
 }: ActionIconProps) {
+  const label = alt ?? GARDEN_ICON_LABELS[name];
   return (
-    <Image
-      src={withBasePath(`/icons/${name}.png`)}
-      alt=""
+    // SMIL animations need a plain <img>, not next/image
+    <img
+      src={gardenIconSrc(name)}
+      alt={alt === "" ? "" : label}
       width={size}
       height={size}
-      className={`${invert ? "brightness-0 invert" : ""} ${className}`}
-      aria-hidden
+      className={`shrink-0 select-none ${className}`.trim()}
+      aria-hidden={alt === "" ? true : undefined}
+      draggable={false}
     />
   );
 }

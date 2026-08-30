@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Verano</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<g transform-origin="48px 34px">
+  <animateTransform attributeName="transform" type="rotate" from="0 48 34" to="360 48 34" dur="10s" repeatCount="indefinite"/>
+  <circle cx="48" cy="34" r="13" class="yellow line"/>
+  <g class="line none">
+    <path d="M48 9v8M48 51v8M23 34h8M65 34h8M30 16l6 6M60 46l6 6M30 52l6-6M60 22l6-6"/>
+  </g>
+</g>
+<path class="soil line" d="M24 79c11-8 37-8 48 0z"/>
+<path class="line none" d="M48 76V57"/>
+<path class="green line" d="M47 66c-10 0-15-6-15-13 9 0 15 4 15 13z"/>
+<path class="green2 line" d="M50 66c10-1 14-7 13-14-9 1-13 5-13 14z"/>
+
+</svg>

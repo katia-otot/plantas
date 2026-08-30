@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Importación</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="blue2 line" d="M18 48h60v22H18z"/>
+<path class="line none" d="M28 48V39h40v9"/>
+<g transform-origin="48px 30px">
+  <animateTransform attributeName="transform" type="translate" values="0 -4;0 5;0 -4" dur="1.5s" repeatCount="indefinite"/>
+  <path class="green line" d="M48 18v24"/>
+  <path class="line none" d="M36 30h24"/>
+  <path class="line none" d="m40 34 8 8 8-8"/>
+</g>
+<path class="cream line" d="M63 18h15v12H63z"/>
+<path class="thin none" d="M66 22h9M66 26h7"/>
+<circle cx="28" cy="59" r="3" class="green2"><animate attributeName="r" values="2;4;2" dur="1.3s" repeatCount="indefinite"/></circle>
+<circle cx="68" cy="59" r="3" class="green2"><animate attributeName="r" values="2;4;2" dur="1.3s" begin=".35s" repeatCount="indefinite"/></circle>
+
+</svg>

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "plantas-patio"
+  },
+  "targets": {
+    "plantas-patio": {
+      "hosting": {
+        "plantas-patio": [
+          "plantas-patio"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

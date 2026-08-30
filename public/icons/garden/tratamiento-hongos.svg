@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Tratamiento contra hongos</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="green line" d="M16 70c16-15 39-16 59-3-12 18-37 23-59 3z"/>
+<path class="line none" d="M28 69c13 0 26 1 38 4"/>
+<g>
+  <circle cx="47" cy="61" r="5" class="cream line">
+    <animate attributeName="r" values="5;2;5" dur="2.1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;.15;1" dur="2.1s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="60" cy="68" r="4" class="cream line">
+    <animate attributeName="r" values="4;1.5;4" dur="2.1s" begin=".35s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;.15;1" dur="2.1s" begin=".35s" repeatCount="indefinite"/>
+  </circle>
+</g>
+<g transform-origin="29px 32px">
+  <animateTransform attributeName="transform" type="rotate" values="0 29 32;-4 29 32;0 29 32" dur="1.8s" repeatCount="indefinite"/>
+  <path class="pink line" d="M17 29h24l2 27H15z"/>
+  <path class="purple line" d="M22 20h14v10H22z"/>
+  <path class="line none" d="M33 20c3-7 12-7 17-2"/>
+  <path class="line none" d="M49 18h12"/>
+</g>
+<g class="blue2">
+  <circle cx="60" cy="22" r="2"><animate attributeName="cx" values="58;72" dur=".8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur=".8s" repeatCount="indefinite"/></circle>
+  <circle cx="60" cy="27" r="2"><animate attributeName="cx" values="58;75" dur=".9s" begin=".3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur=".9s" begin=".3s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

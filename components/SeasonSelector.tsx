@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ActionIcon } from "@/components/ActionIcon";
 import { withBasePath } from "@/lib/base-path";
 import type { Season } from "@/lib/types";
 
@@ -18,6 +19,12 @@ const MODE_LABELS: Record<SeasonMode, string> = {
   summer: "Verano",
   winter: "Invierno",
 };
+
+const MODE_ICONS = {
+  auto: "sol",
+  summer: "verano",
+  winter: "invierno",
+} as const;
 
 export function SeasonSelector({
   effectiveSeason,
@@ -77,13 +84,14 @@ export function SeasonSelector({
               type="button"
               disabled={loading !== null}
               onClick={() => handleSelect(mode)}
-              className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
                 isActive
-                  ? "bg-amber-600 text-white"
+                  ? "bg-amber-100 text-amber-950 ring-2 ring-amber-500"
                   : "bg-white text-amber-950 ring-1 ring-amber-200 hover:bg-amber-100/80"
               } disabled:opacity-60`}
             >
-              {isBusy ? "..." : MODE_LABELS[mode]}
+              <ActionIcon name={MODE_ICONS[mode]} size={40} alt="" />
+              <span>{isBusy ? "..." : MODE_LABELS[mode]}</span>
             </button>
           );
         })}

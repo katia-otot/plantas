@@ -2,10 +2,10 @@
 
 import {
   TREATMENT_TYPE_LABELS,
-  TREATMENT_TYPES,
   availableTreatmentTypes,
   emptyTreatment,
   getTreatmentLabel,
+  isDescriptionTreatmentType,
   type PlantTreatment,
   type TreatmentType,
 } from "@/lib/treatments";
@@ -47,6 +47,16 @@ export function TreatmentListEditor({
 
         return { ...treatment, products };
       }),
+    );
+  }
+
+  function setDescription(treatmentIndex: number, value: string) {
+    onChange(
+      treatments.map((treatment, currentIndex) =>
+        currentIndex === treatmentIndex
+          ? { ...treatment, products: [value] }
+          : treatment,
+      ),
     );
   }
 
@@ -130,39 +140,60 @@ export function TreatmentListEditor({
             />
           )}
 
-          <div className="space-y-2">
-            {treatment.products.map((product, productIndex) => (
-              <div key={productIndex} className="flex gap-2">
-                <input
-                  value={product}
-                  onChange={(event) =>
-                    updateProduct(
-                      treatmentIndex,
-                      productIndex,
-                      event.target.value,
-                    )
-                  }
-                  className="min-w-0 flex-1 rounded-xl border border-emerald-900/15 px-3 py-2 text-sm outline-none ring-emerald-500 focus:ring-2"
-                  placeholder="Producto"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeProduct(treatmentIndex, productIndex)}
-                  className="shrink-0 rounded-xl border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50"
-                >
-                  Quitar
-                </button>
+          {isDescriptionTreatmentType(treatment.type) ? (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-emerald-900/70">
+                Descripción
+              </span>
+              <textarea
+                value={treatment.products[0] ?? ""}
+                onChange={(event) =>
+                  setDescription(treatmentIndex, event.target.value)
+                }
+                rows={3}
+                className="w-full rounded-xl border border-emerald-900/15 px-3 py-2 text-sm outline-none ring-emerald-500 focus:ring-2"
+                placeholder="Ej. sacar ramas secas, formar copa, bajar altura..."
+              />
+            </label>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {treatment.products.map((product, productIndex) => (
+                  <div key={productIndex} className="flex gap-2">
+                    <input
+                      value={product}
+                      onChange={(event) =>
+                        updateProduct(
+                          treatmentIndex,
+                          productIndex,
+                          event.target.value,
+                        )
+                      }
+                      className="min-w-0 flex-1 rounded-xl border border-emerald-900/15 px-3 py-2 text-sm outline-none ring-emerald-500 focus:ring-2"
+                      placeholder="Producto"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeProduct(treatmentIndex, productIndex)
+                      }
+                      className="shrink-0 rounded-xl border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <button
-            type="button"
-            onClick={() => addProduct(treatmentIndex)}
-            className="rounded-xl border border-emerald-900/15 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
-          >
-            Agregar producto
-          </button>
+              <button
+                type="button"
+                onClick={() => addProduct(treatmentIndex)}
+                className="rounded-xl border border-emerald-900/15 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+              >
+                Agregar producto
+              </button>
+            </>
+          )}
         </div>
       ))}
 

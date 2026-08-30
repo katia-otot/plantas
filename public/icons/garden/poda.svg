@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Poda</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="line none" d="M16 67c18-2 26-11 34-23"/>
+<path class="line none" d="M31 57c-6-10-2-18 8-22 2 11-1 18-8 22z"/>
+<path class="line none" d="M46 48c2-12 9-18 20-17-1 11-8 17-20 17z"/>
+<g transform-origin="64px 61px">
+  <animateTransform attributeName="transform" type="rotate" values="0 64 61;-11 64 61;0 64 61" dur="1.7s" repeatCount="indefinite"/>
+  <circle cx="64" cy="61" r="4" class="yellow line"/>
+  <path class="line none" d="M61 59 48 46M67 59l14-13M61 64 49 78M67 64l13 14"/>
+  <circle cx="48" cy="80" r="6" class="pink line"/>
+  <circle cx="81" cy="80" r="6" class="blue line"/>
+</g>
+<path class="thin none" d="M50 42l4 4">
+  <animate attributeName="opacity" values="0;1;0" dur="1.7s" repeatCount="indefinite"/>
+</path>
+
+</svg>

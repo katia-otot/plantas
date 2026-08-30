@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Mapa de plantas</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<g transform-origin="46px 48px">
+  <animateTransform attributeName="transform" type="rotate" values="0 46 48;1.5 46 48;0 46 48;-1.5 46 48;0 46 48" dur="2.6s" repeatCount="indefinite"/>
+  <path class="cream line" d="M16 29l18-7 16 7 16-7 14 6v40l-14-6-16 7-16-7-18 7z"/>
+  <path class="thin none" d="M34 22v40M50 29v40M66 22v40"/>
+</g>
+
+<g transform-origin="58px 37px">
+  <animateTransform attributeName="transform" type="translate" values="0 -1;0 2;0 -1" dur="1.8s" repeatCount="indefinite"/>
+  <path class="green2 line" d="M58 20c-9 0-16 7-16 16 0 11 16 24 16 24s16-13 16-24c0-9-7-16-16-16z"/>
+  <circle cx="58" cy="35" r="7" class="cream line"/>
+  <path class="green line" d="M58 39c-6 0-10-4-10-10 6 0 10 4 10 10z"/>
+  <path class="green2 line" d="M59 39c6-1 9-5 9-10-5 1-8 5-9 10z"/>
+</g>
+
+<g class="yellow">
+  <circle cx="24" cy="18" r="2"><animate attributeName="r" values="1;2.8;1" dur="1.7s" repeatCount="indefinite"/></circle>
+  <circle cx="77" cy="74" r="2"><animate attributeName="r" values="1;2.6;1" dur="1.9s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

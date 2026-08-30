@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Fertilizante</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="soil line" d="M17 78c10-10 52-10 63 0z"/>
+<path class="line none" d="M50 71V45"/>
+<path class="green line" d="M49 55c-9 0-14-6-14-13 8 0 14 4 14 13z"/>
+<path class="green2 line" d="M51 55c9-1 13-7 12-14-8 1-12 6-12 14z"/>
+<g transform-origin="73px 28px">
+  <animateTransform attributeName="transform" type="rotate" values="0 73 28;8 73 28;-4 73 28;0 73 28" dur="1.8s" repeatCount="indefinite"/>
+  <path class="yellow line" d="M59 16h25l-4 25H63z"/>
+  <path class="line none" d="M61 23h21"/>
+  <text x="71.5" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#3D3A36">NPK</text>
+</g>
+<g class="orange">
+  <circle cx="65" cy="48" r="3"><animate attributeName="cy" values="45;67" dur="1.1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" dur="1.1s" repeatCount="indefinite"/></circle>
+  <circle cx="73" cy="51" r="3"><animate attributeName="cy" values="49;69" dur="1.15s" begin=".25s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" dur="1.15s" begin=".25s" repeatCount="indefinite"/></circle>
+  <circle cx="79" cy="46" r="3"><animate attributeName="cy" values="46;66" dur="1.2s" begin=".5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin=".5s" repeatCount="indefinite"/></circle>
+</g>
+
+</svg>

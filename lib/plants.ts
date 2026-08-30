@@ -1,5 +1,6 @@
 import type { Plant } from "@prisma/client";
 import { prisma } from "./db";
+import { assertPlantInGarden, resolveGardenId } from "./garden-access";
 import {
   addDays,
   computeEffectiveNextWateredAt,
@@ -9,18 +10,30 @@ import {
   getScheduledFertilizerAt,
   getScheduledPestAt,
   markWateredAt,
+  resolveNextWateredAt,
   startOfDay,
 } from "./schedule";
-import type { CareEventType, Season } from "./types";
+import { formatRainDayLabel, parseCalendarDate, toInputDate } from "./format";
+import { mergeNotesIntoObservations } from "./plant-text";
 import {
-  CARE_PRODUCT_LABELS,
+  ACTIVE_PLANT_STATUS,
+  isPlantStatus,
+  normalizePlantStatus,
+  type CareEventType,
+  type PlantStatus,
+  type Season,
+} from "./types";
+import {
   ensureTreatmentProduct,
   findTreatment,
   formatTreatmentActionNote,
   getDefaultProductName,
+  getPruneDescription,
   getTreatmentByType,
   migrateLegacyPestNotesToTreatments,
   serializeCareTreatments,
+  TREATMENT_TYPE_LABELS,
+  withLegacyPruneTreatment,
   type PlantTreatment,
   type TreatmentType,
 } from "./treatments";
@@ -31,10 +44,13 @@ export type PlantInput = {
   location?: string | null;
   notes?: string | null;
   coverPhotoPath?: string | null;
+  status?: PlantStatus | string | null;
   isIndoor?: boolean;
+  quantity?: number;
   waterSummerDays?: number;
   waterWinterDays?: number;
   rainPostponeDays?: number;
+  bidones?: string | null;
   needsPruning?: boolean;
   nextPruneAt?: string | null;
   pruneNotes?: string | null;
@@ -43,13 +59,33 @@ export type PlantInput = {
   careTreatments?: PlantTreatment[] | null;
   pestNotes?: string | null;
   lastWateredAt?: string | null;
+  frostResistance?: string | null;
+  soilType?: string | null;
+  fertilizerType?: string | null;
+  observations?: string | null;
 };
 
+/** Only keys present in the patch are written to the DB. */
+export type PlantPatch = Partial<PlantInput>;
+
+export { mergeNotesIntoObservations } from "./plant-text";
+
+/** Prisma `where` for plants that get Hoy / rain / upcoming cares. */
+export const activePlantWhere = { status: ACTIVE_PLANT_STATUS } as const;
+
 function parseOptionalDate(value?: string | null): Date | null {
-  if (!value) {
+  return parseCalendarDate(value);
+}
+
+function hasOwn(obj: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function trimOrNull(value: string | null | undefined): string | null {
+  if (value == null) {
     return null;
   }
-  return startOfDay(new Date(value));
+  return value.trim() || null;
 }
 
 function normalizeCareTreatments(
@@ -70,6 +106,12 @@ function normalizeCareTreatments(
   }
 
   return null;
+}
+
+function pruneFieldsFromTreatments(treatments: PlantTreatment[] | null | undefined) {
+  const description = getPruneDescription(treatments ?? []);
+  const hasPoda = Boolean(getTreatmentByType(treatments ?? [], "poda"));
+  return { hasPoda, description };
 }
 
 function resolveProductNote(
@@ -106,23 +148,31 @@ export function buildInitialWaterSchedule(
     isIndoor,
   };
 
+  // Rain can advance the *next* watering, but must not overwrite the stored
+  // "último riego" the user entered.
   const effectiveLast = getEffectiveLastWateredAt(
     { lastWateredAt: userLastWatered, isIndoor },
     lastGlobalRainAt,
   );
-  const schedulePlant = { ...plantLike, lastWateredAt: effectiveLast };
 
   if (effectiveLast) {
-    const schedule = markWateredAt(schedulePlant, effectiveLast, seasonOverride);
+    const schedule = markWateredAt(
+      {
+        waterSummerDays: plantLike.waterSummerDays,
+        waterWinterDays: plantLike.waterWinterDays,
+      },
+      effectiveLast,
+      seasonOverride,
+    );
     return {
-      lastWateredAt: schedule.lastWateredAt,
+      lastWateredAt: userLastWatered,
       nextWateredAt: schedule.nextWateredAt,
     };
   }
 
   return {
     lastWateredAt: null,
-    nextWateredAt: computeNextWateredAt(schedulePlant, new Date(), seasonOverride),
+    nextWateredAt: computeNextWateredAt(plantLike, new Date(), seasonOverride),
   };
 }
 
@@ -139,52 +189,64 @@ function parseSeasonOverride(value: string | null | undefined): Season | null {
   return null;
 }
 
-export async function getGardenSettings(): Promise<GardenSettingsData> {
-  const settings = await prisma.gardenSettings.findUnique({
-    where: { id: "singleton" },
+export async function getGardenSettings(
+  gardenId?: string,
+): Promise<GardenSettingsData> {
+  const gid = await resolveGardenId(gardenId);
+  const settings = await prisma.gardenSettings.upsert({
+    where: { gardenId: gid },
+    create: { gardenId: gid },
+    update: {},
   });
 
-  let lastRainAt = settings?.lastRainAt
+  let lastRainAt = settings.lastRainAt
     ? startOfDay(settings.lastRainAt)
     : null;
 
   if (!lastRainAt) {
     const latestRainEvent = await prisma.careEvent.findFirst({
-      where: { type: "rain_skip" },
+      where: { type: "rain_skip", gardenId: gid },
       orderBy: { happenedAt: "desc" },
       select: { happenedAt: true },
     });
 
     if (latestRainEvent) {
       lastRainAt = startOfDay(latestRainEvent.happenedAt);
-      await recordGlobalRain(lastRainAt);
+      await recordGlobalRain(lastRainAt, gid);
     }
   }
 
   return {
     lastRainAt,
-    seasonOverride: parseSeasonOverride(settings?.seasonOverride),
+    seasonOverride: parseSeasonOverride(settings.seasonOverride),
   };
 }
 
-export async function getLastGlobalRainAt(): Promise<Date | null> {
-  const settings = await getGardenSettings();
+export async function getLastGlobalRainAt(
+  gardenId?: string,
+): Promise<Date | null> {
+  const settings = await getGardenSettings(gardenId);
   return settings.lastRainAt;
 }
 
 export async function setSeasonOverride(override: Season | null) {
+  const gid = await resolveGardenId();
   await prisma.gardenSettings.upsert({
-    where: { id: "singleton" },
-    create: { id: "singleton", seasonOverride: override },
+    where: { gardenId: gid },
+    create: { gardenId: gid, seasonOverride: override },
     update: { seasonOverride: override },
   });
 
-  await recalculateAllWaterSchedules(override);
+  await recalculateAllWaterSchedules(override, gid);
 }
 
-async function recalculateAllWaterSchedules(seasonOverride: Season | null) {
-  const lastGlobalRainAt = await getLastGlobalRainAt();
-  const plants = await prisma.plant.findMany();
+async function recalculateAllWaterSchedules(
+  seasonOverride: Season | null,
+  gardenId?: string,
+) {
+  const gid = await resolveGardenId(gardenId);
+  const lastGlobalRainAt = await getLastGlobalRainAt(gid);
+  const plants = await prisma.plant.findMany({ where: { gardenId: gid } });
   const today = new Date();
 
   for (const plant of plants) {
@@ -203,20 +265,26 @@ async function recalculateAllWaterSchedules(seasonOverride: Season | null) {
   }
 }
 
-async function recordGlobalRain(happenedAt: Date = new Date()) {
+async function recordGlobalRain(
+  happenedAt: Date = new Date(),
+  gardenId?: string,
+) {
+  const gid = await resolveGardenId(gardenId);
   const rainAt = startOfDay(happenedAt);
 
   await prisma.gardenSettings.upsert({
-    where: { id: "singleton" },
-    create: { id: "singleton", lastRainAt: rainAt },
+    where: { gardenId: gid },
+    create: { gardenId: gid, lastRainAt: rainAt },
     update: { lastRainAt: rainAt },
   });
 
   return rainAt;
 }
 
-export async function listPlants() {
+export async function listPlants(gardenId?: string) {
+  const gid = await resolveGardenId(gardenId);
   return prisma.plant.findMany({
+    where: { gardenId: gid },
     orderBy: { name: "asc" },
     include: {
       photos: {
@@ -227,9 +295,25 @@ export async function listPlants() {
   });
 }
 
-export async function getPlantById(id: string) {
-  return prisma.plant.findUnique({
-    where: { id },
+/** Plants in the patio (`alta`) — used for Hoy tasks, rain, upcoming cares. */
+export async function listActivePlants(gardenId?: string) {
+  const gid = await resolveGardenId(gardenId);
+  return prisma.plant.findMany({
+    where: { gardenId: gid, ...activePlantWhere },
+    orderBy: { name: "asc" },
+    include: {
+      photos: {
+        where: { eventId: null },
+        take: 1,
+      },
+    },
+  });
+}
+
+export async function getPlantById(id: string, gardenId?: string) {
+  const gid = await resolveGardenId(gardenId);
+  return prisma.plant.findFirst({
+    where: { id, gardenId: gid },
     include: {
       events: {
         orderBy: { happenedAt: "desc" },
@@ -242,31 +326,40 @@ export async function getPlantById(id: string) {
   });
 }
 
-export async function createPlant(input: PlantInput) {
-  const gardenSettings = await getGardenSettings();
+export async function createPlant(input: PlantInput, gardenId?: string) {
+  const gid = await resolveGardenId(gardenId);
+  const gardenSettings = await getGardenSettings(gid);
   const waterSchedule = buildInitialWaterSchedule(
     input,
     gardenSettings.lastRainAt,
     gardenSettings.seasonOverride,
   );
 
+  const treatments = input.careTreatments ?? [];
+  const { hasPoda, description } = pruneFieldsFromTreatments(treatments);
+
   return prisma.plant.create({
     data: {
+      gardenId: gid,
       name: input.name.trim(),
       species: input.species?.trim() || null,
       location: input.location?.trim() || null,
-      notes: input.notes?.trim() || null,
+      notes: null,
       coverPhotoPath: input.coverPhotoPath ?? null,
+      status: normalizePlantStatus(input.status),
       isIndoor: input.isIndoor ?? false,
+      quantity: Math.max(1, Math.round(input.quantity ?? 1)),
       waterSummerDays: input.waterSummerDays ?? 2,
       waterWinterDays: input.waterWinterDays ?? 5,
       rainPostponeDays: input.rainPostponeDays ?? 2,
-      needsPruning: input.needsPruning ?? false,
-      nextPruneAt: input.needsPruning
-        ? parseOptionalDate(input.nextPruneAt)
-        : null,
-      pruneNotes: input.needsPruning
-        ? input.pruneNotes?.trim() || null
+      bidones: input.bidones?.trim() || null,
+      needsPruning: hasPoda ? Boolean(input.needsPruning) : false,
+      nextPruneAt:
+        hasPoda && input.needsPruning
+          ? parseOptionalDate(input.nextPruneAt)
+          : null,
+      pruneNotes: hasPoda
+        ? description || input.pruneNotes?.trim() || null
         : null,
       needsPest: false,
       nextPestAt: null,
@@ -274,57 +367,205 @@ export async function createPlant(input: PlantInput) {
       pestNotes: null,
       lastWateredAt: waterSchedule.lastWateredAt,
       nextWateredAt: waterSchedule.nextWateredAt,
+      frostResistance: input.frostResistance?.trim() || null,
+      soilType: input.soilType?.trim() || null,
+      fertilizerType: input.fertilizerType?.trim() || null,
+      observations: mergeNotesIntoObservations(
+        input.observations,
+        input.notes,
+      ),
     },
   });
 }
 
-export async function updatePlant(id: string, input: PlantInput) {
-  const existing = await prisma.plant.findUniqueOrThrow({ where: { id } });
-  const gardenSettings = await getGardenSettings();
-  const waterSchedule = buildInitialWaterSchedule(
-    {
-      ...input,
-      isIndoor: input.isIndoor ?? existing.isIndoor,
-      lastWateredAt:
-        input.lastWateredAt ??
-        existing.lastWateredAt?.toISOString().slice(0, 10) ??
-        null,
-    },
-    gardenSettings.lastRainAt,
-    gardenSettings.seasonOverride,
-  );
+export async function updatePlant(id: string, input: PlantPatch) {
+  const existing = await assertPlantInGarden(id);
+  const data: Record<string, unknown> = {};
+
+  if (hasOwn(input, "name")) {
+    const name = input.name?.trim();
+    if (!name) {
+      throw new Error("El nombre es obligatorio");
+    }
+    data.name = name;
+  }
+  if (hasOwn(input, "species")) {
+    data.species = trimOrNull(input.species);
+  }
+  if (hasOwn(input, "location")) {
+    data.location = trimOrNull(input.location);
+  }
+  if (hasOwn(input, "notes") || hasOwn(input, "observations")) {
+    const nextObservations = mergeNotesIntoObservations(
+      hasOwn(input, "observations")
+        ? input.observations
+        : existing.observations,
+      hasOwn(input, "notes")
+        ? input.notes
+        : hasOwn(input, "observations")
+          ? null
+          : existing.notes,
+    );
+    data.observations = nextObservations;
+    data.notes = null;
+  }
+  if (hasOwn(input, "coverPhotoPath")) {
+    data.coverPhotoPath = input.coverPhotoPath?.trim() || null;
+  }
+  if (hasOwn(input, "status") && input.status != null) {
+    data.status = normalizePlantStatus(input.status);
+  }
+  if (hasOwn(input, "isIndoor")) {
+    data.isIndoor = Boolean(input.isIndoor);
+  }
+  if (hasOwn(input, "quantity")) {
+    data.quantity = Math.max(1, Math.round(input.quantity ?? existing.quantity));
+  }
+  if (hasOwn(input, "waterSummerDays")) {
+    data.waterSummerDays = input.waterSummerDays ?? existing.waterSummerDays;
+  }
+  if (hasOwn(input, "waterWinterDays")) {
+    data.waterWinterDays = input.waterWinterDays ?? existing.waterWinterDays;
+  }
+  if (hasOwn(input, "rainPostponeDays")) {
+    data.rainPostponeDays = input.rainPostponeDays ?? existing.rainPostponeDays;
+  }
+  if (hasOwn(input, "bidones")) {
+    data.bidones = trimOrNull(input.bidones);
+  }
+  if (hasOwn(input, "careTreatments")) {
+    data.careProducts = input.careTreatments
+      ? serializeCareTreatments(input.careTreatments)
+      : null;
+    const { hasPoda, description } = pruneFieldsFromTreatments(
+      input.careTreatments,
+    );
+    if (!hasPoda) {
+      data.needsPruning = false;
+      data.nextPruneAt = null;
+      data.pruneNotes = null;
+    } else if (description) {
+      data.pruneNotes = description;
+    }
+  }
+  if (hasOwn(input, "needsPruning") && !hasOwn(input, "careTreatments")) {
+    data.needsPruning = Boolean(input.needsPruning);
+    if (input.needsPruning) {
+      if (hasOwn(input, "nextPruneAt")) {
+        data.nextPruneAt = parseOptionalDate(input.nextPruneAt);
+      }
+      if (hasOwn(input, "pruneNotes")) {
+        data.pruneNotes = trimOrNull(input.pruneNotes);
+      }
+    } else {
+      data.nextPruneAt = null;
+      data.pruneNotes = null;
+    }
+  } else if (!hasOwn(input, "careTreatments")) {
+    if (hasOwn(input, "nextPruneAt") && existing.needsPruning) {
+      data.nextPruneAt = parseOptionalDate(input.nextPruneAt);
+    }
+    if (hasOwn(input, "pruneNotes") && existing.needsPruning) {
+      data.pruneNotes = trimOrNull(input.pruneNotes);
+    }
+  }
+  if (hasOwn(input, "frostResistance")) {
+    data.frostResistance = trimOrNull(input.frostResistance);
+  }
+  if (hasOwn(input, "soilType")) {
+    data.soilType = trimOrNull(input.soilType);
+  }
+  if (hasOwn(input, "fertilizerType")) {
+    data.fertilizerType = trimOrNull(input.fertilizerType);
+  }
+
+  const waterFieldsChanged =
+    hasOwn(input, "lastWateredAt") ||
+    hasOwn(input, "waterSummerDays") ||
+    hasOwn(input, "waterWinterDays") ||
+    hasOwn(input, "isIndoor");
+
+  if (waterFieldsChanged) {
+    const gardenSettings = await getGardenSettings();
+    const waterSchedule = buildInitialWaterSchedule(
+      {
+        waterSummerDays:
+          input.waterSummerDays ?? existing.waterSummerDays,
+        waterWinterDays:
+          input.waterWinterDays ?? existing.waterWinterDays,
+        isIndoor: input.isIndoor ?? existing.isIndoor,
+        lastWateredAt: hasOwn(input, "lastWateredAt")
+          ? input.lastWateredAt ?? null
+          : toInputDate(existing.lastWateredAt) || null,
+      },
+      gardenSettings.lastRainAt,
+      gardenSettings.seasonOverride,
+    );
+    data.lastWateredAt = waterSchedule.lastWateredAt;
+    data.nextWateredAt = waterSchedule.nextWateredAt;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return existing;
+  }
 
   return prisma.plant.update({
     where: { id },
+    data,
+  });
+}
+
+/** Status-only update for quick changes from the plants list. */
+export async function updatePlantStatus(id: string, status: PlantStatus) {
+  if (!isPlantStatus(status)) {
+    throw new Error("Estado inválido");
+  }
+
+  await assertPlantInGarden(id);
+  return prisma.plant.update({
+    where: { id },
+    data: { status: normalizePlantStatus(status) },
+  });
+}
+
+export async function updatePlantMapPin(
+  id: string,
+  pin: { mapX: number | null; mapY: number | null; mapSize?: number | null },
+) {
+  await assertPlantInGarden(id);
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
+
+  const clearing = pin.mapX == null || pin.mapY == null;
+
+  return prisma.plant.update({
+    where: { id },
+    data: clearing
+      ? { mapX: null, mapY: null, mapSize: null }
+      : {
+          mapX: clamp(pin.mapX!, 0, 100),
+          mapY: clamp(pin.mapY!, 0, 100),
+          mapSize:
+            pin.mapSize == null ? undefined : clamp(pin.mapSize, 4, 28),
+        },
+  });
+}
+
+export async function updatePlantCoverPhoto(
+  id: string,
+  coverPhotoPath: string | null,
+) {
+  await assertPlantInGarden(id);
+  return prisma.plant.update({
+    where: { id },
     data: {
-      name: input.name.trim(),
-      species: input.species?.trim() || null,
-      location: input.location?.trim() || null,
-      notes: input.notes?.trim() || null,
-      coverPhotoPath: input.coverPhotoPath ?? existing.coverPhotoPath,
-      isIndoor: input.isIndoor ?? existing.isIndoor,
-      waterSummerDays: input.waterSummerDays ?? existing.waterSummerDays,
-      waterWinterDays: input.waterWinterDays ?? existing.waterWinterDays,
-      rainPostponeDays: input.rainPostponeDays ?? existing.rainPostponeDays,
-      needsPruning: input.needsPruning ?? false,
-      nextPruneAt: input.needsPruning
-        ? parseOptionalDate(input.nextPruneAt)
-        : null,
-      pruneNotes: input.needsPruning
-        ? input.pruneNotes?.trim() || null
-        : null,
-      needsPest: existing.needsPest,
-      nextPestAt: existing.nextPestAt,
-      careProducts: normalizeCareTreatments(input, existing),
-      pestNotes: existing.pestNotes,
-      treatmentType: existing.treatmentType,
-      lastWateredAt: waterSchedule.lastWateredAt,
-      nextWateredAt: waterSchedule.nextWateredAt,
+      coverPhotoPath: coverPhotoPath?.trim() || null,
     },
   });
 }
 
 export async function deletePlant(id: string) {
+  await assertPlantInGarden(id);
   return prisma.plant.delete({ where: { id } });
 }
 
@@ -342,7 +583,7 @@ export async function performPlantAction(
   const happenedAt = options?.happenedAt ?? new Date();
   const notes = options?.notes?.trim() || null;
   const photoPaths = options?.photoPaths ?? [];
-  const gardenSettings = await getGardenSettings();
+  const gardenSettings = await getGardenSettings(plant.gardenId);
   const treatments = getPlantCareTreatments(plant);
   const pestTreatment =
     options?.treatmentType &&
@@ -392,13 +633,13 @@ export async function performPlantAction(
       break;
     }
     case "rain_skip": {
+      // Rain advances next watering but must not overwrite stored "último riego".
       const schedule = markWateredAt(
         plant,
         happenedAt,
         gardenSettings.seasonOverride,
       );
       updateData = {
-        lastWateredAt: schedule.lastWateredAt,
         nextWateredAt: schedule.nextWateredAt,
       };
       break;
@@ -442,8 +683,14 @@ export async function performPlantAction(
       data: updateData,
     });
 
+    // Rain history is one patio-wide entry from applyRainToAllPlants.
+    if (action === "rain_skip") {
+      return { plant: updatedPlant, event: null };
+    }
+
     const event = await tx.careEvent.create({
       data: {
+        gardenId: plant.gardenId,
         plantId: plant.id,
         type: action,
         happenedAt,
@@ -466,28 +713,129 @@ export async function performPlantAction(
 }
 
 export async function applyRainToAllPlants(happenedAt: Date = new Date()) {
-  await recordGlobalRain(happenedAt);
-  const plants = await prisma.plant.findMany({ where: { isIndoor: false } });
-  const results = [];
-
-  for (const plant of plants) {
-    results.push(await performPlantAction(plant, "rain_skip", { happenedAt }));
+  const gid = await resolveGardenId();
+  const rainAt = startOfDay(happenedAt);
+  const settings = await getGardenSettings(gid);
+  if (
+    settings.lastRainAt &&
+    startOfDay(settings.lastRainAt).getTime() === rainAt.getTime()
+  ) {
+    return { plantsUpdated: 0, alreadyRecorded: true as const };
   }
 
-  return results;
+  await recordGlobalRain(rainAt, gid);
+  const gardenSettings = await getGardenSettings(gid);
+  const plants = await prisma.plant.findMany({
+    where: { gardenId: gid, isIndoor: false, ...activePlantWhere },
+  });
+
+  for (const plant of plants) {
+    const schedule = markWateredAt(
+      plant,
+      rainAt,
+      gardenSettings.seasonOverride,
+    );
+    await prisma.plant.update({
+      where: { id: plant.id },
+      data: { nextWateredAt: schedule.nextWateredAt },
+    });
+  }
+
+  await prisma.careEvent.create({
+    data: {
+      gardenId: gid,
+      plantId: null,
+      type: "rain_skip",
+      happenedAt: rainAt,
+      notes: formatRainDayLabel(rainAt),
+    },
+  });
+
+  return { plantsUpdated: plants.length, alreadyRecorded: false as const };
 }
 
-export async function createPlantNote(
-  plantId: string,
-  notes: string,
-  happenedAt: Date = new Date(),
-  photoPaths: string[] = [],
-) {
-  return performPlantAction(
-    await prisma.plant.findUniqueOrThrow({ where: { id: plantId } }),
-    "note",
-    { notes, happenedAt, photoPaths },
-  );
+export async function undoTodaysRain(now: Date = new Date()) {
+  const gid = await resolveGardenId();
+  const today = startOfDay(now);
+  const tomorrow = addDays(today, 1);
+
+  await prisma.careEvent.deleteMany({
+    where: {
+      gardenId: gid,
+      type: "rain_skip",
+      happenedAt: { gte: today, lt: tomorrow },
+    },
+  });
+
+  const previousRain = await prisma.careEvent.findFirst({
+    where: { gardenId: gid, type: "rain_skip" },
+    orderBy: { happenedAt: "desc" },
+    select: { happenedAt: true },
+  });
+  const previousRainAt = previousRain
+    ? startOfDay(previousRain.happenedAt)
+    : null;
+
+  await prisma.gardenSettings.upsert({
+    where: { gardenId: gid },
+    create: { gardenId: gid, lastRainAt: previousRainAt },
+    update: { lastRainAt: previousRainAt },
+  });
+
+  const gardenSettings = await getGardenSettings(gid);
+  const plants = await prisma.plant.findMany({
+    where: { gardenId: gid, isIndoor: false, ...activePlantWhere },
+  });
+
+  for (const plant of plants) {
+    // If a past rain had overwritten lastWateredAt to "today", restore from
+    // the last real watering event when possible.
+    let lastWateredAt = plant.lastWateredAt
+      ? startOfDay(plant.lastWateredAt)
+      : null;
+    if (lastWateredAt && lastWateredAt.getTime() === today.getTime()) {
+      const lastWatering = await prisma.careEvent.findFirst({
+        where: { plantId: plant.id, type: "watering" },
+        orderBy: { happenedAt: "desc" },
+        select: { happenedAt: true },
+      });
+      lastWateredAt = lastWatering
+        ? startOfDay(lastWatering.happenedAt)
+        : null;
+    }
+
+    const nextWateredAt = computeEffectiveNextWateredAt(
+      {
+        waterSummerDays: plant.waterSummerDays,
+        waterWinterDays: plant.waterWinterDays,
+        lastWateredAt,
+        isIndoor: plant.isIndoor,
+      },
+      previousRainAt,
+      now,
+      gardenSettings.seasonOverride,
+    );
+
+    await prisma.plant.update({
+      where: { id: plant.id },
+      data: { lastWateredAt, nextWateredAt },
+    });
+  }
+
+  return {
+    lastRainAt: previousRainAt,
+    plantCount: plants.length,
+  };
+}
+
+export function rainedOnDate(
+  lastRainAt: Date | null | undefined,
+  day: Date = new Date(),
+): boolean {
+  if (!lastRainAt) {
+    return false;
+  }
+  return startOfDay(lastRainAt).getTime() === startOfDay(day).getTime();
 }
 
 export function getPlantScheduleSummary(
@@ -496,7 +844,7 @@ export function getPlantScheduleSummary(
   seasonOverride: Season | null = null,
 ) {
   return {
-    nextWateredAt: computeEffectiveNextWateredAt(
+    nextWateredAt: resolveNextWateredAt(
       plant,
       lastGlobalRainAt,
       new Date(),
@@ -508,6 +856,61 @@ export function getPlantScheduleSummary(
   };
 }
 
+export async function scheduleWatering(
+  plantId: string,
+  options?: {
+    nextWateredAt?: string | null;
+  },
+) {
+  const plant = await assertPlantInGarden(plantId);
+  const nextWateredAt = options?.nextWateredAt
+    ? parseOptionalDate(options.nextWateredAt)
+    : getNextSaturday();
+
+  if (!nextWateredAt) {
+    throw new Error("Fecha inválida");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPlant = await tx.plant.update({
+      where: { id: plantId },
+      data: { nextWateredAt },
+    });
+
+    const event = await tx.careEvent.create({
+      data: {
+        gardenId: plant.gardenId,
+        plantId,
+        type: "water_scheduled",
+        happenedAt: new Date(),
+        notes: `Programado para ${nextWateredAt.toLocaleDateString("es-AR", {
+          weekday: "long",
+          day: "numeric",
+          month: "short",
+        })}`,
+      },
+    });
+
+    return { plant: updatedPlant, event };
+  });
+}
+
+export async function resetWaterSchedule(plantId: string) {
+  const plant = await assertPlantInGarden(plantId);
+  const gardenSettings = await getGardenSettings(plant.gardenId);
+  const nextWateredAt = computeEffectiveNextWateredAt(
+    plant,
+    gardenSettings.lastRainAt,
+    new Date(),
+    gardenSettings.seasonOverride,
+  );
+
+  return prisma.plant.update({
+    where: { id: plantId },
+    data: { nextWateredAt },
+  });
+}
+
 export async function scheduleFertilizer(
   plantId: string,
   options?: {
@@ -515,6 +918,7 @@ export async function scheduleFertilizer(
     notes?: string | null;
   },
 ) {
+  const plant = await assertPlantInGarden(plantId);
   const nextFertilizerAt = options?.nextFertilizerAt
     ? parseOptionalDate(options.nextFertilizerAt)
     : getNextSaturday();
@@ -536,6 +940,7 @@ export async function scheduleFertilizer(
 
     const event = await tx.careEvent.create({
       data: {
+        gardenId: plant.gardenId,
         plantId,
         type: "fertilizer_scheduled",
         happenedAt: new Date(),
@@ -554,6 +959,7 @@ export async function scheduleFertilizer(
 }
 
 export async function cancelFertilizer(plantId: string) {
+  await assertPlantInGarden(plantId);
   return prisma.plant.update({
     where: { id: plantId },
     data: {
@@ -569,8 +975,8 @@ function formatTreatmentNote(
   productName: string | null | undefined,
 ): string | null {
   const typeLabel =
-    treatmentType && treatmentType in CARE_PRODUCT_LABELS
-      ? CARE_PRODUCT_LABELS[treatmentType as TreatmentType]
+    treatmentType && treatmentType in TREATMENT_TYPE_LABELS
+      ? TREATMENT_TYPE_LABELS[treatmentType as TreatmentType]
       : null;
 
   if (typeLabel && productName) {
@@ -589,7 +995,7 @@ export async function schedulePestTreatment(
     treatmentLabel?: string | null;
   },
 ) {
-  const plant = await prisma.plant.findUniqueOrThrow({ where: { id: plantId } });
+  const plant = await assertPlantInGarden(plantId);
   const treatmentType: TreatmentType =
     options?.treatmentType === "anti-bichos" ||
     options?.treatmentType === "anti-hongos" ||
@@ -606,19 +1012,20 @@ export async function schedulePestTreatment(
     throw new Error("Fecha inválida");
   }
 
-  if (treatmentType === "otro" && !notes) {
-    throw new Error("Poné un nombre para el tratamiento");
-  }
-
-  let treatments = getPlantCareTreatments(plant);
-  if (notes) {
-    treatments = ensureTreatmentProduct(
-      treatments,
-      treatmentType,
-      notes,
-      options?.treatmentLabel ?? undefined,
+  if (!notes) {
+    throw new Error(
+      treatmentType === "otro"
+        ? "Poné un nombre para el tratamiento"
+        : "Indicá el producto del tratamiento",
     );
   }
+
+  let treatments = ensureTreatmentProduct(
+    getPlantCareTreatments(plant),
+    treatmentType,
+    notes,
+    options?.treatmentLabel ?? undefined,
+  );
 
   const scheduledTreatment =
     treatmentType === "otro"
@@ -653,6 +1060,7 @@ export async function schedulePestTreatment(
 
     const event = await tx.careEvent.create({
       data: {
+        gardenId: plant.gardenId,
         plantId,
         type: "pest_scheduled",
         happenedAt: new Date(),
@@ -671,6 +1079,7 @@ export async function schedulePestTreatment(
 }
 
 export async function cancelPestTreatment(plantId: string) {
+  await assertPlantInGarden(plantId);
   return prisma.plant.update({
     where: { id: plantId },
     data: {
@@ -683,29 +1092,80 @@ export async function cancelPestTreatment(plantId: string) {
 }
 
 export function getPlantCareTreatments(
-  plant: Pick<Plant, "careProducts" | "pestNotes">,
+  plant: Pick<Plant, "careProducts" | "pestNotes" | "pruneNotes" | "needsPruning">,
 ): PlantTreatment[] {
-  return migrateLegacyPestNotesToTreatments(
-    plant.careProducts,
-    plant.pestNotes,
+  return withLegacyPruneTreatment(
+    migrateLegacyPestNotesToTreatments(plant.careProducts, plant.pestNotes),
+    plant.pruneNotes,
+    plant.needsPruning,
   );
 }
 
-/** @deprecated Use getPlantCareTreatments */
-export function getPlantCareProducts(
-  plant: Pick<Plant, "careProducts" | "pestNotes">,
+export async function schedulePrune(
+  plantId: string,
+  options?: {
+    nextPruneAt?: string | null;
+    notes?: string | null;
+  },
 ) {
-  return getPlantCareTreatments(plant).flatMap((treatment) =>
-    treatment.products.map((name) => ({
-      name,
-      type: treatment.type,
-    })),
-  );
+  const plant = await assertPlantInGarden(plantId);
+  const nextPruneAt = options?.nextPruneAt
+    ? parseOptionalDate(options.nextPruneAt)
+    : getNextSaturday();
+  const notes =
+    options?.notes?.trim() ||
+    getPruneDescription(getPlantCareTreatments(plant)) ||
+    null;
+
+  if (!nextPruneAt) {
+    throw new Error("Fecha inválida");
+  }
+
+  let careProducts = plant.careProducts;
+  if (notes) {
+    careProducts = serializeCareTreatments(
+      ensureTreatmentProduct(getPlantCareTreatments(plant), "poda", notes),
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPlant = await tx.plant.update({
+      where: { id: plantId },
+      data: {
+        needsPruning: true,
+        nextPruneAt,
+        pruneNotes: notes,
+        careProducts,
+      },
+    });
+
+    const event = await tx.careEvent.create({
+      data: {
+        gardenId: plant.gardenId,
+        plantId,
+        type: "prune_scheduled",
+        happenedAt: new Date(),
+        notes:
+          notes ??
+          `Programada para ${nextPruneAt.toLocaleDateString("es-AR", {
+            weekday: "long",
+            day: "numeric",
+            month: "short",
+          })}`,
+      },
+    });
+
+    return { plant: updatedPlant, event };
+  });
 }
 
-export function schedulePruneReminder(
-  plant: Plant,
-  daysFromNow: number = 90,
-): Date {
-  return addDays(startOfDay(new Date()), daysFromNow);
+export async function cancelPrune(plantId: string) {
+  await assertPlantInGarden(plantId);
+  return prisma.plant.update({
+    where: { id: plantId },
+    data: {
+      needsPruning: false,
+      nextPruneAt: null,
+    },
+  });
 }

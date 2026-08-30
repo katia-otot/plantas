@@ -7,18 +7,115 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Auth.js ───────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  memberships   GardenMember[]
+  ownedGardens  Garden[]  @relation("GardenOwner")
+  pushSubscriptions PushSubscription[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// Un patio. Dueños compartidos (slug=default) o patio personal vacío.
+model Garden {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  name        String         @default("Patio")
+  /// Dueño principal (para patios personales; en el compartido puede ser null o uno de los owners).
+  ownerUserId String?
+  ownerUser   User?          @relation("GardenOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  members     GardenMember[]
+  plants      Plant[]
+  birds       Bird[]
+  notes       GardenNote[]
+  careEvents  CareEvent[]
+  settings    GardenSettings?
+  pushSubscriptions PushSubscription[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([ownerUserId])
+}
+
+model GardenMember {
+  id       String  @id @default(cuid())
+  gardenId String
+  garden   Garden  @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  /// Email del dueño (antes o después de que inicie sesión).
+  email    String
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role     String  @default("owner")
+  createdAt DateTime @default(now())
+
+  @@unique([gardenId, email])
+  @@index([email])
+  @@index([userId])
+}
+
+// ─── Patio data (scoped by gardenId) ───────────────────────
+
 model Plant {
   id               String    @id @default(cuid())
+  gardenId         String
+  garden           Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
   name             String
   species          String?
   location         String?
   notes            String?
   coverPhotoPath   String?
+  /// alta = en el patio (notificaciones); baja = ya no está; posible = candidata
+  status           String    @default("alta")
   isIndoor         Boolean   @default(false)
+  quantity         Int       @default(1)
 
   waterSummerDays  Int       @default(2)
   waterWinterDays  Int       @default(5)
   rainPostponeDays Int       @default(2)
+  bidones          String?
   lastWateredAt    DateTime?
   nextWateredAt    DateTime?
 
@@ -38,17 +135,33 @@ model Plant {
   treatmentType    String?
   lastPestAt       DateTime?
 
+  frostResistance  String?
+  soilType         String?
+  fertilizerType   String?
+  observations     String?
+
+  /// Patio map pin: percent of map width/height (0–100). Null = not placed.
+  mapX             Float?
+  mapY             Float?
+  /// Marker diameter as percent of map width (default ~9).
+  mapSize          Float?
+
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   events CareEvent[]
   photos Photo[]
+
+  @@index([gardenId])
 }
 
 model CareEvent {
   id         String   @id @default(cuid())
-  plantId    String
-  plant      Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  gardenId   String
+  garden     Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  /// Null = evento general del patio (p. ej. lluvia).
+  plantId    String?
+  plant      Plant?   @relation(fields: [plantId], references: [id], onDelete: Cascade)
   type       String
   happenedAt DateTime @default(now())
   notes      String?
@@ -56,6 +169,8 @@ model CareEvent {
   photos Photo[]
 
   createdAt DateTime @default(now())
+
+  @@index([gardenId])
 }
 
 model Photo {
@@ -70,8 +185,58 @@ model Photo {
 }
 
 model GardenSettings {
-  id              String    @id @default("singleton")
+  id              String    @id @default(cuid())
+  gardenId        String    @unique
+  garden          Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
   lastRainAt      DateTime?
   seasonOverride  String?
   updatedAt       DateTime  @updatedAt
+}
+
+/// Patio notes / tips — not plants.
+model GardenNote {
+  id        String   @id @default(cuid())
+  gardenId  String
+  garden    Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  category  String?  @default("tip")
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gardenId])
+}
+
+/// Birds seen in the patio / neighborhood.
+model Bird {
+  id             String   @id @default(cuid())
+  gardenId       String
+  garden         Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  name           String
+  notes          String?
+  coverPhotoPath String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([gardenId])
+}
+
+/// Web Push subscriptions (Android / desktop browsers).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  gardenId  String?
+  garden    Garden?  @relation(fields: [gardenId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([gardenId])
 }

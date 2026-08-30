@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
       {
         pathname: "/icons/**",
       },
+      {
+        pathname: `${basePath}/maps/**`,
+      },
+      {
+        pathname: "/maps/**",
+      },
     ],
   },
 };

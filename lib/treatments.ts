@@ -1,13 +1,15 @@
-export type TreatmentType = "fertilizante" | "anti-bichos" | "anti-hongos" | "otro";
+export type TreatmentType =
+  | "fertilizante"
+  | "poda"
+  | "anti-bichos"
+  | "anti-hongos"
+  | "otro";
 
 export interface PlantTreatment {
   type: TreatmentType;
   label?: string;
   products: string[];
 }
-
-/** @deprecated Use TreatmentType */
-export type CareProductType = TreatmentType;
 
 /** @deprecated Legacy flat product shape */
 export interface CareProduct {
@@ -17,6 +19,7 @@ export interface CareProduct {
 
 export const TREATMENT_TYPES: TreatmentType[] = [
   "fertilizante",
+  "poda",
   "anti-bichos",
   "anti-hongos",
   "otro",
@@ -24,20 +27,18 @@ export const TREATMENT_TYPES: TreatmentType[] = [
 
 export const TREATMENT_TYPE_LABELS: Record<TreatmentType, string> = {
   fertilizante: "Fertilizante",
+  poda: "Poda",
   "anti-bichos": "Anti-bichos",
   "anti-hongos": "Anti-hongos",
   otro: "Otro",
 };
 
-/** Treatments that appear in pest/quick-treatment actions (not fertilizer). */
+/** Treatments that appear in pest/quick-treatment actions (not fertilizer/prune). */
 export const PEST_TREATMENT_TYPES: TreatmentType[] = [
   "anti-bichos",
   "anti-hongos",
   "otro",
 ];
-
-export const CARE_PRODUCT_TYPES = TREATMENT_TYPES;
-export const CARE_PRODUCT_LABELS = TREATMENT_TYPE_LABELS;
 
 function cleanProductName(name: string): string {
   return name.trim();
@@ -347,11 +348,48 @@ export function emptyTreatment(type: TreatmentType): PlantTreatment {
     return { type, label: "", products: [""] };
   }
 
+  if (type === "poda") {
+    return { type, products: [""] };
+  }
+
   return { type, products: [""] };
 }
 
 export function defaultNewPlantTreatments(): PlantTreatment[] {
   return [emptyTreatment("fertilizante")];
+}
+
+/** Inject legacy pruneNotes into treatments when no poda entry exists yet. */
+export function withLegacyPruneTreatment(
+  treatments: PlantTreatment[],
+  pruneNotes?: string | null,
+  needsPruning?: boolean,
+): PlantTreatment[] {
+  if (getTreatmentByType(treatments, "poda")) {
+    return treatments;
+  }
+
+  const description = pruneNotes?.trim() || "";
+  if (!description && !needsPruning) {
+    return treatments;
+  }
+
+  return [
+    ...treatments,
+    description
+      ? { type: "poda", products: [description] }
+      : emptyTreatment("poda"),
+  ];
+}
+
+export function getPruneDescription(
+  treatments: PlantTreatment[],
+): string | null {
+  const poda = getTreatmentByType(treatments, "poda");
+  if (!poda) {
+    return null;
+  }
+  return getDefaultProductForTreatment(poda) || null;
 }
 
 export function canAddTreatmentType(
@@ -375,4 +413,8 @@ export function availableTreatmentTypes(
 
 export function isPestTreatmentType(type: TreatmentType): boolean {
   return PEST_TREATMENT_TYPES.includes(type);
+}
+
+export function isDescriptionTreatmentType(type: TreatmentType): boolean {
+  return type === "poda";
 }

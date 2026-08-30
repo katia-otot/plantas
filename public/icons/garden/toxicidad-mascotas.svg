@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+<title id="title">Compatibilidad con mascotas</title>
+
+<style>
+  .line { stroke:#3D3A36; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .thin { stroke:#3D3A36; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .green { fill:#72C96B; }
+  .green2 { fill:#A7E29F; }
+  .soil { fill:#B9855A; }
+  .blue { fill:#67C9E8; }
+  .blue2 { fill:#A9E6F6; }
+  .yellow { fill:#FFD45E; }
+  .orange { fill:#F6A65B; }
+  .red { fill:#F27979; }
+  .pink { fill:#F6A6BC; }
+  .purple { fill:#A88BE0; }
+  .cream { fill:#FFF7E8; }
+  .white { fill:#FFFFFF; }
+  .none { fill:none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+
+
+<path class="green line" d="M15 72c18-8 36-5 51 7-18 5-35 1-51-7z"/>
+<path class="line none" d="M26 72c12 1 22 3 32 6"/>
+<g transform-origin="69px 42px">
+  <animateTransform attributeName="transform" type="scale" values="1;1.06;1" dur="2s" repeatCount="indefinite"/>
+  <path class="cream line" d="M54 45c0-15 30-15 30 0 0 16-15 26-15 26S54 61 54 45z"/>
+  <circle cx="63" cy="39" r="4" class="pink line"/>
+  <circle cx="75" cy="39" r="4" class="pink line"/>
+  <circle cx="69" cy="48" r="5" class="pink line"/>
+  <circle cx="58" cy="50" r="3" class="pink line"/>
+  <circle cx="80" cy="50" r="3" class="pink line"/>
+</g>
+
+</svg>
