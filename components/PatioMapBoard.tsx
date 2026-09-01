@@ -572,9 +572,10 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
 
   return (
     <div className="flex flex-col">
+      <div className="md:mx-auto md:w-full md:max-w-lg md:px-4">
       <div
         ref={viewportRef}
-        className={`relative w-full overflow-hidden border-y border-emerald-900/10 bg-white select-none ${
+        className={`relative w-full overflow-hidden border-y border-emerald-900/10 bg-white select-none md:rounded-xl md:border ${
           blockPageScroll ? "touch-none" : "touch-pan-y"
         }`}
         style={{ aspectRatio: "610 / 1024" }}
@@ -725,9 +726,10 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
           })}
         </div>
       </div>
+      </div>
 
       {editMode ? (
-        <section className="mx-4 mt-4 rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
+        <section className="mx-4 mt-4 rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm md:mx-auto md:max-w-lg">
           <h2 className="font-semibold text-emerald-950">
             Sin ubicar ({unplaced.length})
           </h2>
