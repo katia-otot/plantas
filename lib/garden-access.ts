@@ -216,11 +216,6 @@ export async function ensureGardenAccess(
   return createPersonalGarden(userId, normalized);
 }
 
-/** @deprecated Use ensureGardenAccess — kept for older call sites. */
-export async function linkUserToGarden(userId: string, email: string) {
-  return ensureGardenAccess(userId, email);
-}
-
 /**
  * Resolve the garden for the current request.
  * With session → user's patio. Without (auth off / scripts) → shared default.
@@ -240,14 +235,6 @@ export async function resolveGardenId(explicit?: string): Promise<string> {
   }
 
   return (await ensureDefaultGarden()).id;
-}
-
-export async function requireUserGarden(): Promise<Garden> {
-  const session = await getAuthSession();
-  if (!session?.user?.id || !session.user.email) {
-    throw new Error("Tenés que iniciar sesión");
-  }
-  return ensureGardenAccess(session.user.id, session.user.email);
 }
 
 /** Ensure a plant belongs to the caller's garden (or explicit gardenId). */

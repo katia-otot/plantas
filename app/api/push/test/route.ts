@@ -3,7 +3,7 @@ import { notifyTodayTasks } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
-/** Manual test from the Plantas UI (private patio app). Cron uses /notify-today with secret. */
+/** Manual test from the Plantas UI. Scheduled sends use the in-app scheduler. */
 export async function POST() {
   try {
     const result = await notifyTodayTasks({ forceEmpty: true });

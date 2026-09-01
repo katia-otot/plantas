@@ -13,10 +13,6 @@ export type FrostValue =
   | { kind: "category"; category: FrostCategory }
   | { kind: "celsius"; celsius: number };
 
-export function isFrostCategory(value: string): value is FrostCategory {
-  return (FROST_CATEGORIES as readonly string[]).includes(value);
-}
-
 /** Parse stored typed value (category or number). Free text → null. */
 export function parseFrostValue(raw: string | null | undefined): FrostValue | null {
   if (!raw?.trim()) {
@@ -92,50 +88,6 @@ export function frostGroupCategory(
   }
   return frostCategoryFromCelsius(value.celsius);
 }
-
-/**
- * Alert colors:
- * - vulnerable / warmer than -3°C → alert (rojo)
- * - moderada / warmer than -1°C → warn (ámbar); rojo gana si aplica ambos
- */
-export function frostTone(
-  value: FrostValue | null,
-): "alert" | "warn" | "ok" | "empty" {
-  if (!value) {
-    return "empty";
-  }
-
-  const category = frostGroupCategory(value);
-  if (category === "Vulnerable") {
-    return "alert";
-  }
-  if (category === "Moderada") {
-    return "warn";
-  }
-  return "ok";
-}
-
-export const FROST_TONE_STYLES: Record<
-  "alert" | "warn" | "ok" | "empty",
-  { section: string; badge: string }
-> = {
-  alert: {
-    section: "border-rose-300/80 bg-rose-50",
-    badge: "bg-rose-600 text-white",
-  },
-  warn: {
-    section: "border-amber-300/80 bg-amber-50",
-    badge: "bg-amber-500 text-white",
-  },
-  ok: {
-    section: "border-emerald-900/10 bg-white",
-    badge: "bg-emerald-700 text-white",
-  },
-  empty: {
-    section: "border-dashed border-emerald-900/20 bg-white",
-    badge: "bg-emerald-900/40 text-white",
-  },
-};
 
 /** Legend + group colors (same idea as pH strip chips). */
 export const FROST_CATEGORY_STYLE: Record<

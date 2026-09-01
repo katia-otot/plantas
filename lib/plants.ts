@@ -16,6 +16,12 @@ import {
 import { formatRainDayLabel, parseCalendarDate, toInputDate } from "./format";
 import { mergeNotesIntoObservations } from "./plant-text";
 import {
+  DEFAULT_NOTIFY_WEEKDAY_TIME,
+  DEFAULT_NOTIFY_WEEKEND_TIME,
+  type NotificationSchedule,
+  parseNotifyTime,
+} from "./notification-schedule";
+import {
   ACTIVE_PLANT_STATUS,
   isPlantStatus,
   normalizePlantStatus,
@@ -179,6 +185,7 @@ export function buildInitialWaterSchedule(
 export type GardenSettingsData = {
   lastRainAt: Date | null;
   seasonOverride: Season | null;
+  notificationSchedule: NotificationSchedule;
 };
 
 function parseSeasonOverride(value: string | null | undefined): Season | null {
@@ -219,7 +226,72 @@ export async function getGardenSettings(
   return {
     lastRainAt,
     seasonOverride: parseSeasonOverride(settings.seasonOverride),
+    notificationSchedule: {
+      weekdayTime:
+        parseNotifyTime(settings.notifyWeekdayTime) ??
+        DEFAULT_NOTIFY_WEEKDAY_TIME,
+      weekendTime:
+        parseNotifyTime(settings.notifyWeekendTime) ??
+        DEFAULT_NOTIFY_WEEKEND_TIME,
+    },
   };
+}
+
+export async function getNotificationSchedule(
+  gardenId?: string,
+): Promise<NotificationSchedule> {
+  const settings = await getGardenSettings(gardenId);
+  return settings.notificationSchedule;
+}
+
+export async function setNotificationSchedule(
+  schedule: NotificationSchedule,
+  gardenId?: string,
+): Promise<NotificationSchedule> {
+  const weekdayTime = parseNotifyTime(schedule.weekdayTime);
+  const weekendTime = parseNotifyTime(schedule.weekendTime);
+  if (!weekdayTime || !weekendTime) {
+    throw new Error("Horario de avisos inválido");
+  }
+
+  const gid = await resolveGardenId(gardenId);
+  await prisma.gardenSettings.upsert({
+    where: { gardenId: gid },
+    create: {
+      gardenId: gid,
+      notifyWeekdayTime: weekdayTime,
+      notifyWeekendTime: weekendTime,
+    },
+    update: {
+      notifyWeekdayTime: weekdayTime,
+      notifyWeekendTime: weekendTime,
+    },
+  });
+
+  return { weekdayTime, weekendTime };
+}
+
+export async function markNotificationSent(
+  sentAt = new Date(),
+  gardenId?: string,
+): Promise<void> {
+  const gid = await resolveGardenId(gardenId);
+  await prisma.gardenSettings.upsert({
+    where: { gardenId: gid },
+    create: { gardenId: gid, lastNotifySentAt: sentAt },
+    update: { lastNotifySentAt: sentAt },
+  });
+}
+
+export async function getLastNotificationSentAt(
+  gardenId?: string,
+): Promise<Date | null> {
+  const gid = await resolveGardenId(gardenId);
+  const settings = await prisma.gardenSettings.findUnique({
+    where: { gardenId: gid },
+    select: { lastNotifySentAt: true },
+  });
+  return settings?.lastNotifySentAt ?? null;
 }
 
 export async function getLastGlobalRainAt(
@@ -1020,7 +1092,7 @@ export async function schedulePestTreatment(
     );
   }
 
-  let treatments = ensureTreatmentProduct(
+  const treatments = ensureTreatmentProduct(
     getPlantCareTreatments(plant),
     treatmentType,
     notes,

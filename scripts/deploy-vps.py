@@ -179,6 +179,12 @@ def main() -> None:
         f"mv {new_dir} {REMOTE_DIR}",
     )
 
+    # 7b. Migrar schema en la DB activa (DATABASE_URL apunta a /opt/plantas/data)
+    run(
+        client,
+        f"cd {REMOTE_DIR} && NEXT_PUBLIC_BASE_PATH=/plantas npx prisma db push",
+    )
+
     run(client, "systemctl restart plantas")
     time.sleep(4)
     run(client, "systemctl is-active plantas")
@@ -191,6 +197,23 @@ def main() -> None:
         client,
         f"stat -c '%s' {REMOTE_DIR}/data/app.db && "
         f"find {REMOTE_DIR}/data/uploads -type f ! -name '.gitkeep' | wc -l",
+    )
+
+    # 8. Quitar cron viejo de notify-today (scheduler interno en la app)
+    run(
+        client,
+        "(crontab -l 2>/dev/null | grep -v notify-today || true) | crontab - || true",
+    )
+    run(
+        client,
+        "crontab -l 2>/dev/null | grep notify-today && "
+        "echo 'WARN: sigue habiendo cron notify-today' || "
+        "echo 'cron notify-today: none (OK)'",
+    )
+    run(
+        client,
+        "journalctl -u plantas -n 40 --no-pager | grep notification-scheduler | tail -3 || "
+        "echo 'WARN: no hay log del scheduler aún (revisar tras unos segundos)'",
     )
 
     sftp.close()

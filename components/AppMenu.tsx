@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ActionIcon } from "@/components/ActionIcon";
 import { BackupDownloadButton } from "@/components/BackupDownloadButton";
@@ -11,6 +11,12 @@ import { PushNotificationsPanel } from "@/components/PushNotificationsPanel";
 import { SeasonSelector } from "@/components/SeasonSelector";
 import { SignOutButton } from "@/components/SignOutButton";
 import { UserAccountSummary } from "@/components/UserAccountSummary";
+import {
+  getClientMountedSnapshot,
+  getServerMountedSnapshot,
+  shouldRenderClientPortal,
+  subscribeClientMounted,
+} from "@/lib/client-mounted";
 import type { Season } from "@/lib/types";
 
 interface AppMenuProps {
@@ -69,12 +75,12 @@ export function AppMenu({
   user = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeClientMounted,
+    getClientMountedSnapshot,
+    getServerMountedSnapshot,
+  );
   const titleId = useId();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -97,8 +103,7 @@ export function AppMenu({
     };
   }, [open]);
 
-  const panel =
-    open && mounted
+  const panel = shouldRenderClientPortal(open, mounted)
       ? createPortal(
           <div className="fixed inset-0 z-[100]">
             <button

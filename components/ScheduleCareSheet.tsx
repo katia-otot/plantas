@@ -3,7 +3,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { ActionIcon, type ActionIconName } from "@/components/ActionIcon";
 import { getDefaultSaturdayInput } from "@/lib/care-schedule";
-import { toInputDate } from "@/lib/format";
 import { withBasePath } from "@/lib/base-path";
 import {
   PEST_TREATMENT_TYPES,
@@ -17,9 +16,10 @@ import {
   type TreatmentType,
 } from "@/lib/treatments";
 
-export type ScheduleCareKind = "water" | "fertilizer" | "prune" | "treatment";
-
-const NEW_TREATMENT_OPTION = "new";
+import {
+  buildScheduleCareFormDefaults,
+  type ScheduleCareKind,
+} from "@/lib/schedule-care-form";
 
 type Props = {
   open: boolean;
@@ -41,39 +41,26 @@ type Props = {
   onSaved: () => void;
 };
 
-function findInitialTreatmentIndex(
-  treatments: PlantTreatment[],
-  initialType?: string | null,
-  pestNotes?: string | null,
-): number {
-  if (treatments.length === 0) {
-    return 0;
+export type { ScheduleCareKind };
+
+const NEW_TREATMENT_OPTION = "new";
+
+export function ScheduleCareSheet(props: Props) {
+  const { open, kind, plantId } = props;
+  if (!open || !kind) {
+    return null;
   }
 
-  const normalizedNotes = pestNotes?.trim().toLowerCase();
-
-  if (initialType) {
-    const byType = treatments.findIndex((treatment) => {
-      if (treatment.type !== initialType) {
-        return false;
-      }
-      if (!normalizedNotes) {
-        return true;
-      }
-      return treatment.products.some(
-        (product) => product.toLowerCase() === normalizedNotes,
-      );
-    });
-    if (byType >= 0) {
-      return byType;
-    }
-  }
-
-  return 0;
+  return (
+    <ScheduleCareSheetContent
+      key={`${plantId}-${kind}`}
+      {...props}
+      kind={kind}
+    />
+  );
 }
 
-export function ScheduleCareSheet({
-  open,
+function ScheduleCareSheetContent({
   kind,
   plantId,
   careTreatments,
@@ -90,7 +77,7 @@ export function ScheduleCareSheet({
   treatmentType = null,
   onClose,
   onSaved,
-}: Props) {
+}: Props & { kind: ScheduleCareKind }) {
   const titleId = useId();
   const defaultDate = useMemo(() => getDefaultSaturdayInput(), []);
   const fertilizerTreatment = useMemo(
@@ -107,72 +94,7 @@ export function ScheduleCareSheet({
     [careTreatments],
   );
 
-  const [nextDate, setNextDate] = useState(defaultDate);
-  const [notes, setNotes] = useState("");
-  const [productName, setProductName] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [creatingNew, setCreatingNew] = useState(false);
-  const [newTreatmentType, setNewTreatmentType] =
-    useState<TreatmentType>("anti-bichos");
-  const [newTreatmentLabel, setNewTreatmentLabel] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open || !kind) {
-      return;
-    }
-
-    if (kind === "water") {
-      setNextDate(nextWateredAt ? toInputDate(nextWateredAt) : defaultDate);
-      setNotes("");
-      setProductName("");
-      setCreatingNew(false);
-    } else if (kind === "fertilizer") {
-      setNextDate(
-        nextFertilizerAt ? toInputDate(nextFertilizerAt) : defaultDate,
-      );
-      setProductName(
-        fertilizerNotes?.trim() ||
-          (fertilizerTreatment
-            ? getDefaultProductForTreatment(fertilizerTreatment)
-            : ""),
-      );
-      setCreatingNew(false);
-    } else if (kind === "prune") {
-      setNextDate(nextPruneAt ? toInputDate(nextPruneAt) : defaultDate);
-      setNotes(
-        pruneNotes?.trim() ||
-          (pruneTreatment
-            ? getDefaultProductForTreatment(pruneTreatment)
-            : ""),
-      );
-      setCreatingNew(false);
-    } else {
-      setNextDate(nextPestAt ? toInputDate(nextPestAt) : defaultDate);
-      setNewTreatmentType("anti-bichos");
-      setNewTreatmentLabel("");
-      if (pestTreatments.length === 0) {
-        setCreatingNew(true);
-        setSelectedIndex(0);
-        setProductName("");
-      } else {
-        const index = findInitialTreatmentIndex(
-          pestTreatments,
-          treatmentType,
-          pestNotes,
-        );
-        const selected = pestTreatments[index] ?? null;
-        setCreatingNew(false);
-        setSelectedIndex(index);
-        setProductName(
-          pestNotes?.trim() ||
-            (selected ? getDefaultProductForTreatment(selected) : ""),
-        );
-      }
-    }
-  }, [
-    open,
-    kind,
+  const formDefaults = buildScheduleCareFormDefaults(kind, {
     defaultDate,
     nextWateredAt,
     nextFertilizerAt,
@@ -185,12 +107,22 @@ export function ScheduleCareSheet({
     pestNotes,
     treatmentType,
     pestTreatments,
-  ]);
+  });
+
+  const [nextDate, setNextDate] = useState(formDefaults.nextDate);
+  const [notes, setNotes] = useState(formDefaults.notes);
+  const [productName, setProductName] = useState(formDefaults.productName);
+  const [selectedIndex, setSelectedIndex] = useState(formDefaults.selectedIndex);
+  const [creatingNew, setCreatingNew] = useState(formDefaults.creatingNew);
+  const [newTreatmentType, setNewTreatmentType] = useState(
+    formDefaults.newTreatmentType,
+  );
+  const [newTreatmentLabel, setNewTreatmentLabel] = useState(
+    formDefaults.newTreatmentLabel,
+  );
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !saving) {
         onClose();
@@ -198,11 +130,7 @@ export function ScheduleCareSheet({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, saving, onClose]);
-
-  if (!open || !kind) {
-    return null;
-  }
+  }, [saving, onClose]);
 
   const selectedTreatment =
     !creatingNew && kind === "treatment"

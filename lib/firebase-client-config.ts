@@ -46,8 +46,3 @@ export function getFirebaseAuthBridgeUrl(): string {
     "https://plantas-patio.web.app/auth-login.html"
   );
 }
-
-export function isFirebaseClientConfigured(): boolean {
-  const config = getFirebaseWebConfig();
-  return Boolean(config.apiKey && config.projectId && config.appId);
-}

@@ -10,7 +10,10 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:migrate-multi-garden": "tsx scripts/migrate-multi-garden.ts"
+    "db:migrate-multi-garden": "tsx scripts/migrate-multi-garden.ts",
+    "test": "node --import tsx --test lib/*.test.ts",
+    "test:notifications": "npm run test",
+    "predeploy": "npm run test && npm run build"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -36,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "firebase-tools": "^13.35.1",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

@@ -307,35 +307,6 @@ export function ensureTreatmentProduct(
   );
 }
 
-/** @deprecated Use parseCareTreatments */
-export function parseCareProducts(
-  value: string | null | undefined,
-): CareProduct[] {
-  return parseCareTreatments(value).flatMap((treatment) =>
-    treatment.products.map((name) => ({
-      name,
-      type: treatment.type,
-    })),
-  );
-}
-
-/** @deprecated Use serializeCareTreatments */
-export function serializeCareProducts(products: CareProduct[]): string | null {
-  return serializeCareTreatments(migrateProductsToTreatments(products));
-}
-
-/** @deprecated Use parseCareTreatments */
-export function migrateLegacyPestNotes(
-  careProducts: string | null | undefined,
-  pestNotes: string | null | undefined,
-): CareProduct[] {
-  return parseCareProducts(careProducts ?? null).length > 0
-    ? parseCareProducts(careProducts)
-    : pestNotes?.trim()
-      ? [{ name: pestNotes.trim(), type: "anti-bichos" }]
-      : [];
-}
-
 export function migrateLegacyPestNotesToTreatments(
   careProducts: string | null | undefined,
   pestNotes: string | null | undefined,

@@ -2,8 +2,146 @@
 
 import { useEffect, useState } from "react";
 import { withBasePath } from "@/lib/base-path";
+import { formatScheduleLabel } from "@/lib/notification-schedule";
 
-const FCM_FLAG = "plantasFcmActivated";
+import {
+  FCM_ACTIVATED_FLAG,
+  detectPushSupport,
+  readFcmActivated,
+  type PushSupportState,
+} from "@/lib/push-client";
+
+type ScheduleState = {
+  weekdayTime: string;
+  weekendTime: string;
+};
+
+function NotificationScheduleSettings() {
+  const [schedule, setSchedule] = useState<ScheduleState>({
+    weekdayTime: "15:00",
+    weekendTime: "10:30",
+  });
+  const [draft, setDraft] = useState<ScheduleState>(schedule);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch(
+          withBasePath("/api/settings/notification-schedule"),
+        );
+        if (!response.ok) {
+          throw new Error("No se pudo leer el horario");
+        }
+        const payload = (await response.json()) as ScheduleState;
+        setSchedule(payload);
+        setDraft(payload);
+      } catch (error) {
+        console.error(error);
+        setScheduleMessage("No se pudo cargar el horario de avisos");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const dirty =
+    draft.weekdayTime !== schedule.weekdayTime ||
+    draft.weekendTime !== schedule.weekendTime;
+
+  async function saveSchedule() {
+    try {
+      setSaving(true);
+      setScheduleMessage(null);
+      const response = await fetch(
+        withBasePath("/api/settings/notification-schedule"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(draft),
+        },
+      );
+      const payload = (await response.json()) as ScheduleState & {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "No se pudo guardar");
+      }
+      setSchedule(payload);
+      setDraft(payload);
+      setScheduleMessage("Horario guardado.");
+    } catch (error) {
+      console.error(error);
+      setScheduleMessage(
+        error instanceof Error ? error.message : "No se pudo guardar el horario",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <p className="text-sm text-emerald-900/70">Cargando horario de avisos…</p>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-emerald-900/10 bg-emerald-50/60 p-3">
+      <div>
+        <p className="text-sm font-semibold text-emerald-950">Horario de avisos</p>
+        <p className="mt-1 text-xs text-emerald-900/70">
+          {formatScheduleLabel(schedule)}. Aplica a todos los celulares del patio.
+        </p>
+      </div>
+
+      <label className="block text-sm text-emerald-950">
+        <span className="mb-1 block font-medium">Lunes a viernes</span>
+        <input
+          type="time"
+          value={draft.weekdayTime}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              weekdayTime: event.target.value,
+            }))
+          }
+          className="w-full rounded-lg border border-emerald-900/15 bg-white px-3 py-2 text-sm"
+        />
+      </label>
+
+      <label className="block text-sm text-emerald-950">
+        <span className="mb-1 block font-medium">Sábado y domingo</span>
+        <input
+          type="time"
+          value={draft.weekendTime}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              weekendTime: event.target.value,
+            }))
+          }
+          className="w-full rounded-lg border border-emerald-900/15 bg-white px-3 py-2 text-sm"
+        />
+      </label>
+
+      <button
+        type="button"
+        disabled={!dirty || saving}
+        onClick={() => void saveSchedule()}
+        className="w-full rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+      >
+        {saving ? "Guardando…" : "Guardar horario"}
+      </button>
+
+      {scheduleMessage ? (
+        <p className="text-sm text-emerald-900/80">{scheduleMessage}</p>
+      ) : null}
+    </div>
+  );
+}
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -16,48 +154,21 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-type SupportState = "checking" | "ok" | "insecure" | "unsupported";
-
 export function PushNotificationsPanel() {
-  const [support, setSupport] = useState<SupportState>("checking");
-  const [permission, setPermission] =
-    useState<NotificationPermission>("default");
+  const [support] = useState<PushSupportState>(() => detectPushSupport());
+  const [permission, setPermission] = useState<NotificationPermission>(() =>
+    typeof window === "undefined" ? "default" : Notification.permission,
+  );
   const [subscribed, setSubscribed] = useState(false);
-  const [fcmActivated, setFcmActivated] = useState(false);
+  const [fcmActivated, setFcmActivated] = useState(() => readFcmActivated());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (support !== "ok") {
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("avisos") === "ok") {
-      localStorage.setItem(FCM_FLAG, "1");
-      params.delete("avisos");
-      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
-      window.history.replaceState({}, "", next);
-    }
-
-    setFcmActivated(localStorage.getItem(FCM_FLAG) === "1");
-
-    if (!window.isSecureContext) {
-      setSupport("insecure");
-      return;
-    }
-
-    const ok =
-      "serviceWorker" in navigator &&
-      "PushManager" in window &&
-      "Notification" in window;
-    if (!ok) {
-      setSupport("unsupported");
-      return;
-    }
-
-    setSupport("ok");
-    setPermission(Notification.permission);
     void (async () => {
       try {
         const registration = await navigator.serviceWorker.register(
@@ -75,7 +186,7 @@ export function PushNotificationsPanel() {
         setMessage("No se pudo registrar el service worker");
       }
     })();
-  }, []);
+  }, [support]);
 
   async function enable() {
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -149,13 +260,13 @@ export function PushNotificationsPanel() {
   }
 
   function markFcmActivated() {
-    localStorage.setItem(FCM_FLAG, "1");
+    localStorage.setItem(FCM_ACTIVATED_FLAG, "1");
     setFcmActivated(true);
     setMessage("Listo. Este celular queda marcado como con avisos activos.");
   }
 
   function clearFcmActivated() {
-    localStorage.removeItem(FCM_FLAG);
+    localStorage.removeItem(FCM_ACTIVATED_FLAG);
     setFcmActivated(false);
     setMessage(
       "Se ocultó el estado en este celular. Los avisos pueden seguir llegando hasta que los desactives en la página de Firebase.",
@@ -208,10 +319,11 @@ export function PushNotificationsPanel() {
         <h3 className="font-semibold text-emerald-950">Notificaciones Hoy</h3>
         <p className="mt-2 text-sm text-emerald-900/70">
           Los avisos se activan por celular en una página segura. Al tocarlos se
-          abre Anthos. Horario: lun–vie 15:00 · sáb–dom 10:30 (Argentina).
+          abre Anthos.
         </p>
 
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-3">
+          <NotificationScheduleSettings />
           {fcmActivated ? (
             <>
               <p className="text-sm font-medium text-emerald-800">
@@ -285,7 +397,10 @@ export function PushNotificationsPanel() {
         Avisos de riegos y cuidados pendientes (solo plantas en Alta).
       </p>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-3">
+        <NotificationScheduleSettings />
+
+        <div className="space-y-2">
         {!subscribed ? (
           <button
             type="button"
@@ -318,6 +433,7 @@ export function PushNotificationsPanel() {
             </button>
           </>
         )}
+        </div>
       </div>
 
       {message ? (

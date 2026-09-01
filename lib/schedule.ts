@@ -172,23 +172,6 @@ export function computeNextWateredAt(
   return addDays(startOfDay(base), interval);
 }
 
-export function postponeWatering(
-  plant: Pick<
-    Plant,
-    | "nextWateredAt"
-    | "rainPostponeDays"
-    | "waterSummerDays"
-    | "waterWinterDays"
-    | "lastWateredAt"
-  >,
-  fromDate: Date = new Date(),
-  seasonOverride?: Season | null,
-): Date {
-  const currentNext =
-    plant.nextWateredAt ?? computeNextWateredAt(plant, fromDate, seasonOverride);
-  return addDays(currentNext, plant.rainPostponeDays);
-}
-
 export function markWateredAt(
   plant: Pick<
     Plant,

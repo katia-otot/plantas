@@ -1,8 +1,7 @@
 #!/bin/bash
-# Daily "Hoy" push notifications on the VPS (installed to /opt/plantas/scripts/).
-# Cron (America/Argentina/Buenos_Aires):
-#   Mon–Fri 15:00
-#   Sat–Sun 10:30
+# Manual "Hoy" push trigger (optional). Scheduled sends run inside the Plantas app
+# (notification scheduler). Use only for debugging:
+#   bash /opt/plantas/scripts/notify-today.sh
 set -euo pipefail
 ENV_FILE="/opt/plantas/.env"
 LOG="/var/log/plantas/notify-today.log"
@@ -20,7 +19,7 @@ if [[ -z "$SECRET" ]]; then
 fi
 
 {
-  echo "$(date -Is) starting notify-today"
+  echo "$(date -Is) starting notify-today (manual)"
   CODE=$(curl -sS -o /tmp/plantas-notify-out.json -w '%{http_code}' -X POST \
     -H "Authorization: Bearer ${SECRET}" \
     -H "Content-Type: application/json" \

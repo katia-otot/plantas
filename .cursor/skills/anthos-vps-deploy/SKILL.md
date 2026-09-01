@@ -2,9 +2,9 @@
 name: anthos-vps-deploy
 description: >-
   Deploy seguro de Anthos/Plantas al VPS: conservar data/uploads y app.db,
-  verificar fotos referenciadas, permisos de cron y secretos. Usar cuando el
+  verificar fotos referenciadas, scheduler de avisos y secretos. Usar cuando el
   usuario pida deploy, subir al VPS, producción 149.50.156.136/plantas, o
-  cambios que afecten data/, uploads, notify-today o crontab.
+  cambios que afecten data/, uploads o notificaciones push.
 disable-model-invocation: true
 ---
 
@@ -38,7 +38,7 @@ El script viejo hacía esto mal:
 - **Producción:** `http://149.50.156.136/plantas` → `/opt/plantas`
 - **Base:** `/opt/plantas/data/app.db` (SQLite)
 - **Fotos:** `/opt/plantas/data/uploads/` — rutas en DB: `/api/uploads/{uuid}.jpg`
-- **Cron avisos:** `scripts/notify-today.sh` → `POST /plantas/api/push/notify-today`
+- **Avisos push:** scheduler interno en la app (`lib/notification-scheduler.ts`); horario en menú → `GardenSettings`. Script `notify-today.sh` solo para prueba manual.
 - **Backup útil:** `/opt/plantas.old/data/` si un deploy falló
 
 El tarball de deploy **no incluye** fotos ni `app.db` locales (la PC no tiene las del patio). Hay que **preservar en el servidor** lo que ya existe.
@@ -51,10 +51,9 @@ Deploy seguro:
 - [ ] data/ del VPS copiada intacta (app.db + uploads/)
 - [ ] Conteo de archivos en data/uploads/ > 0 si hay portadas en DB
 - [ ] Fotos referenciadas existen en disco
-- [ ] chmod 755 en scripts/notify-today.sh
-- [ ] crontab usa `bash /opt/plantas/scripts/notify-today.sh`
 - [ ] Secretos presentes (.env, firebase-adminsdk.json si aplica)
 - [ ] Servicio plantas active + HTTP 200 en /plantas/login
+- [ ] Log del servicio muestra `[notification-scheduler] próximo aviso:` tras restart
 ```
 
 ## Cómo deployear
@@ -119,41 +118,39 @@ curl -s -o /dev/null -w "upload:%{http_code}\n" \
 
 **Fallo:** `missing > 0` o `upload:404` → restaurar uploads desde backup y no declarar éxito.
 
-## Verificar cron
+## Verificar avisos programados
+
+Los avisos **no usan crontab**. El servicio `plantas` programa el próximo envío al arrancar y al guardar el horario en el menú.
 
 ```bash
-stat -c '%a %n' /opt/plantas/scripts/notify-today.sh   # debe ser 755 (o al menos ejecutable)
-crontab -l | grep notify-today                          # debe usar `bash .../notify-today.sh`
-tail -3 /var/log/plantas/notify-today.log               # últimas ejecuciones OK
+journalctl -u plantas -n 30 --no-pager | grep notification-scheduler
+# Debe verse: [notification-scheduler] próximo aviso: ...
 ```
 
-Si el permiso no es ejecutable:
+Si hay entradas viejas de cron con `notify-today`, **quitarlas** para evitar avisos duplicados:
 
 ```bash
-chmod 755 /opt/plantas/scripts/notify-today.sh
+crontab -l | grep notify-today   # si aparece, editar con crontab -e y borrar esas líneas
 ```
 
-Crontab recomendado:
+Prueba manual opcional (no programada):
 
-```cron
-CRON_TZ=America/Argentina/Buenos_Aires
-0 15 * * 1-5 bash /opt/plantas/scripts/notify-today.sh
-0 10 * * 0,6 bash /opt/plantas/scripts/notify-today.sh
+```bash
+bash /opt/plantas/scripts/notify-today.sh
+tail -3 /var/log/plantas/notify-today.log
 ```
-
-(Ajustar hora según lo acordado con la usuaria.)
 
 ## Otros secretos que no deben perderse
 
 - `/opt/plantas/.env` (AUTH_SECRET, PUSH_NOTIFY_SECRET, FIREBASE_SERVICE_ACCOUNT_PATH, …)
 - `/opt/plantas/secrets/firebase-adminsdk.json` (600, fuera de git)
 
-Tras deploy, confirmar que Firebase Admin responde (login Google) y que un `notify-today` manual devuelve HTTP 200.
+Tras deploy, confirmar que Firebase Admin responde (login Google) y que el log muestra el próximo aviso programado.
 
 ## Resumen al usuario
 
 Al cerrar un deploy, reportar en español:
 
 - Plantas / eventos / fotos en disco (conteos)
-- Si cron quedó ejecutable
+- Si el scheduler de avisos quedó activo (línea en journalctl)
 - Si hubo restauración desde backup

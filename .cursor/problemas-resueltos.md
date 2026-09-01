@@ -5,6 +5,20 @@ Registro vivo de incidentes y soluciones del proyecto Plantas/Anthos.
 
 ---
 
+## 2026-09-01 — Avisos push: cron vs scheduler interno
+
+**Síntoma:** Confusión sobre crontab cada minuto; horario del menú no coincidía con envíos en producción.
+
+**Contexto:** Notificaciones FCM/Web Push; horario configurable en menú (`GardenSettings`).
+
+**Causa:** El envío programado dependía del crontab del VPS (horarios fijos o polling cada minuto), separado del horario guardado en la app.
+
+**Solución:** Scheduler interno (`lib/notification-scheduler.ts` + `instrumentation.ts`). Al arrancar `plantas` y al guardar horario en el menú, la app programa el próximo aviso. **Quitar** entradas de `notify-today` del crontab para no duplicar.
+
+**Prevención:** Tras deploy, verificar `journalctl -u plantas | grep notification-scheduler`. Prueba manual: botón en menú o `scripts/notify-today.sh`.
+
+---
+
 ## 2026-08-30 — Deploy deja `app.db` en 0 bytes (base anidada en `data/data/`)
 
 **Síntoma:** Tras deploy, la app da error 500 (`digest: 2665091590`); `app.db` pesa 0 bytes; login roto; fotos desaparecen.

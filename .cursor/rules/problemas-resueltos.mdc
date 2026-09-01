@@ -1,0 +1,49 @@
+---
+description: Consultar y actualizar el registro de problemas resueltos antes de depurar o al cerrar un incidente
+alwaysApply: true
+---
+
+# Registro de problemas resueltos
+
+Documento maestro: `.cursor/problemas-resueltos.md`
+
+## Antes de depurar o si te trabás
+
+1. Leé `.cursor/problemas-resueltos.md` completo (o buscá por síntomas/palabras clave).
+2. Si hay un caso similar, aplicá la **Solución** documentada antes de inventar otra.
+3. Si no hay match, resolvé el problema y **agregá una entrada nueva**.
+
+## Cuándo agregar una entrada
+
+- Encontraste un bug, error de deploy, dato perdido, config rota o bloqueo repetible.
+- La solución no es obvia y conviene recordarla para la próxima.
+- Cerraste un incidente que podría volver a pasar.
+
+No anotes typos triviales ni fixes de una línea sin lección reusable.
+
+## Formato de cada entrada (la más reciente va **arriba de todo**)
+
+Insertá debajo del encabezado `# Problemas resueltos`, **antes** de la entrada anterior:
+
+```markdown
+## YYYY-MM-DD — Título corto
+
+**Síntoma:** qué se veía / qué fallaba
+**Contexto:** deploy, fotos, auth, cron, build, etc.
+**Causa:** por qué pasó
+**Solución:** pasos concretos que funcionaron
+**Prevención:** cómo evitar que se repita
+```
+
+## Reglas de edición
+
+- Fecha = día en que se documentó o resolvió (UTC-3 / Argentina).
+- Una entrada = un problema distinto; no mezclar temas.
+- Mantener entradas en español.
+- No borrar entradas viejas salvo que el usuario lo pida.
+- Tras agregar una entrada, mencioná brevemente en el chat que actualizaste el doc.
+
+## Relación con otros archivos
+
+- Este registro es **solo de este proyecto** (no mezclar con otros workspaces).
+- Si el proyecto tiene skills propios (p. ej. `.cursor/skills/anthos-vps-deploy/SKILL.md`), referenciarlos en la entrada en vez de duplicar.

@@ -121,9 +121,7 @@ export function isGardenNoteText(name: string): boolean {
 }
 
 /** Notes/tips by default — not a todo list. */
-export function inferGardenNoteCategory(
-  _title?: string,
-): GardenNoteCategory {
+export function inferGardenNoteCategory(): GardenNoteCategory {
   return "tip";
 }
 
@@ -137,7 +135,7 @@ export function shapeGardenNote(
   ctx: GardenNoteShapeContext,
 ): { note: ShapedGardenNote; ctx: GardenNoteShapeContext } {
   const name = rawName.trim();
-  const category = inferGardenNoteCategory(name);
+  const category = inferGardenNoteCategory();
   const normalized = normalizeNoteKey(name);
   let section = ctx.section;
   let topic = ctx.topic;

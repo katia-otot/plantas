@@ -185,12 +185,17 @@ model Photo {
 }
 
 model GardenSettings {
-  id              String    @id @default(cuid())
-  gardenId        String    @unique
-  garden          Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
-  lastRainAt      DateTime?
-  seasonOverride  String?
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  gardenId          String    @unique
+  garden            Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  lastRainAt        DateTime?
+  seasonOverride    String?
+  /// HH:MM (Argentina), lun–vie
+  notifyWeekdayTime String    @default("15:00")
+  /// HH:MM (Argentina), sáb–dom
+  notifyWeekendTime String    @default("10:30")
+  lastNotifySentAt  DateTime?
+  updatedAt         DateTime  @updatedAt
 }
 
 /// Patio notes / tips — not plants.

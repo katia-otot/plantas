@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
+import { activateMapPlant } from "@/lib/map-plant-activate";
 import { withBasePath } from "@/lib/base-path";
 import type { DueStatus } from "@/lib/types";
 
@@ -553,30 +554,15 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
   }
 
   function handlePlantActivate(plant: (typeof local)[number]) {
-    if (editMode || movedRef.current) {
-      return;
-    }
-
-    if (isDesktopPointer()) {
-      router.push(`/plants/${plant.id}`);
-      return;
-    }
-
-    const now = Date.now();
-    const last = lastTapRef.current;
-    if (
-      namedId === plant.id &&
-      last?.id === plant.id &&
-      now - last.at < 650
-    ) {
-      lastTapRef.current = null;
-      setNamedId(null);
-      router.push(`/plants/${plant.id}`);
-      return;
-    }
-
-    lastTapRef.current = { id: plant.id, at: now };
-    setNamedId(plant.id);
+    activateMapPlant(plant, {
+      editMode,
+      movedRef,
+      isDesktopPointer,
+      push: (href) => router.push(href),
+      namedId,
+      lastTapRef,
+      setNamedId,
+    });
   }
 
   // Only block page scroll while zoomed or mid-gesture. At 1× allow

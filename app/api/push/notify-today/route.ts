@@ -22,6 +22,7 @@ function isAuthorized(request: Request) {
   return url.searchParams.get("secret") === secret;
 }
 
+/** Manual trigger only. Scheduled sends use the in-app notification scheduler. */
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });

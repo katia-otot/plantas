@@ -45,8 +45,12 @@ yarn-error.log*
 # local data
 /data/app.db
 /data/app.db-journal
+/data/*.bak
 /data/uploads/*
 !/data/uploads/.gitkeep
+
+# firebase cli deploy cache
+notify-web/.firebase/
 
 # firebase secrets / service accounts (never commit)
 **/firebase-service-account*.json

@@ -42,7 +42,7 @@ export async function savePushSubscription(
   }
 
   const session = await auth();
-  let userId: string | null = session?.user?.id ?? null;
+  const userId: string | null = session?.user?.id ?? null;
   let gardenId: string | null = null;
   try {
     gardenId = await resolveGardenId();
