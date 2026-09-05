@@ -46,7 +46,7 @@ describe("formatScheduleLabel", () => {
   it("formats weekday and weekend times", () => {
     assert.equal(
       formatScheduleLabel(schedule),
-      "lun–vie 15:00 · sáb–dom 10:30 (Argentina)",
+      "lun–vie 14:15 · sáb–dom 10:30 (Argentina)",
     );
   });
 });
@@ -60,18 +60,18 @@ describe("argentinaLocalToDate", () => {
 
 describe("isNotificationDue", () => {
   it("is true at the configured weekday time without prior send", () => {
-    const now = art(2026, 9, 1, 15, 0); // Tuesday
+    const now = art(2026, 9, 1, 14, 15); // Tuesday
     assert.equal(isNotificationDue(schedule, null, now), true);
   });
 
   it("is false before the configured weekday time", () => {
-    const now = art(2026, 9, 1, 14, 59);
+    const now = art(2026, 9, 1, 14, 14);
     assert.equal(isNotificationDue(schedule, null, now), false);
   });
 
   it("is false if already sent the same calendar day", () => {
-    const now = art(2026, 9, 1, 15, 0);
-    const lastSent = art(2026, 9, 1, 15, 0);
+    const now = art(2026, 9, 1, 14, 15);
+    const lastSent = art(2026, 9, 1, 14, 15);
     assert.equal(isNotificationDue(schedule, lastSent, now), false);
   });
 
@@ -81,7 +81,7 @@ describe("isNotificationDue", () => {
   });
 
   it("uses weekend schedule on Saturday, not weekday", () => {
-    const now = art(2026, 9, 6, 15, 0); // Saturday 15:00
+    const now = art(2026, 9, 6, 14, 15); // Saturday 14:15
     assert.equal(isNotificationDue(schedule, null, now), false);
   });
 });
@@ -90,19 +90,19 @@ describe("getNextNotificationAt", () => {
   it("returns later today when weekday time has not passed", () => {
     const from = art(2026, 9, 1, 10, 0); // Tuesday morning
     const next = getNextNotificationAt(schedule, from);
-    assert.equal(next.toISOString(), art(2026, 9, 1, 15, 0).toISOString());
+    assert.equal(next.toISOString(), art(2026, 9, 1, 14, 15).toISOString());
   });
 
   it("returns next weekday after today's slot passed", () => {
-    const from = art(2026, 9, 1, 15, 30); // Tuesday afternoon
+    const from = art(2026, 9, 1, 14, 30); // Tuesday afternoon
     const next = getNextNotificationAt(schedule, from);
-    assert.equal(next.toISOString(), art(2026, 9, 2, 15, 0).toISOString());
+    assert.equal(next.toISOString(), art(2026, 9, 2, 14, 15).toISOString());
   });
 
   it("returns Saturday morning after Friday afternoon", () => {
-    const from = art(2026, 9, 5, 16, 0); // Friday
+    const from = art(2026, 9, 4, 16, 0); // Friday
     const next = getNextNotificationAt(schedule, from);
-    assert.equal(next.toISOString(), art(2026, 9, 6, 10, 30).toISOString());
+    assert.equal(next.toISOString(), art(2026, 9, 5, 10, 30).toISOString());
   });
 
   it("returns Sunday morning after Saturday slot passed", () => {

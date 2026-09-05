@@ -15,8 +15,10 @@ import {
   getPlantCareTreatments,
   getPlantScheduleSummary,
   listActivePlants,
-  rainedOnDate,
 } from "@/lib/plants";
+import { getRainDayForDate } from "@/lib/rain-days";
+import { todayCalendarDateString } from "@/lib/calendar-date";
+import type { RainIntensity } from "@/lib/rain-credit";
 import { toPlantCareSchedule } from "@/lib/care-schedule";
 import { resolveGardenId } from "@/lib/garden-access";
 import { withBasePath } from "@/lib/base-path";
@@ -87,6 +89,8 @@ export default async function HomePage() {
   const outdoorPlants = (
     await listActivePlants(gardenId)
   ).filter((p) => !p.isIndoor).length;
+  const todayRain = await getRainDayForDate(todayCalendarDateString(today));
+  const todayIntensity: RainIntensity | null = todayRain?.intensity ?? null;
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
@@ -111,8 +115,7 @@ export default async function HomePage() {
 
       <RainAllButton
         plantCount={outdoorPlants}
-        rainedToday={rainedOnDate(gardenSettings.lastRainAt, today)}
-        lastRainAt={gardenSettings.lastRainAt}
+        todayIntensity={todayIntensity}
       />
 
       {tasks.length === 0 ? (

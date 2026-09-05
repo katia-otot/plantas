@@ -8,6 +8,7 @@ import { BackupDownloadButton } from "@/components/BackupDownloadButton";
 import { BackupRestoreButton } from "@/components/BackupRestoreButton";
 import { ImportExcelButton } from "@/components/ImportExcelButton";
 import { PushNotificationsPanel } from "@/components/PushNotificationsPanel";
+import { GardenLocationPanel } from "@/components/GardenLocationPanel";
 import { SeasonSelector } from "@/components/SeasonSelector";
 import { SignOutButton } from "@/components/SignOutButton";
 import { UserAccountSummary } from "@/components/UserAccountSummary";
@@ -31,6 +32,11 @@ interface AppMenuProps {
 }
 
 const consultaLinks = [
+  {
+    href: "/lluvias",
+    label: "Historial de lluvias",
+    icon: "lluvia" as const,
+  },
   {
     href: "/consulta/historial",
     label: "Historial",
@@ -149,6 +155,7 @@ export function AppMenu({
 
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <PushNotificationsPanel />
+                <GardenLocationPanel />
 
                 <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
                   <h3 className="font-semibold text-emerald-950">Consultas</h3>

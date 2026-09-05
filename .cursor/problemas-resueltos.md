@@ -1,7 +1,28 @@
-# Problemas resueltos
+## 2026-09-05 — Lluvia no corría cactus sin historial de riego
 
-Registro vivo de incidentes y soluciones del proyecto Plantas/Anthos.  
-**Orden:** lo más reciente arriba. El agente debe consultar este archivo antes de depurar.
+**Síntoma:** Con lluvia moderada hoy, Cactus Espiral y Cáctus bracitos delicados seguían en Hoy para regar; Aloe/Lavanda (mismo intervalo 14) no.
+**Contexto:** Sistema de lluvias (`lib/rain-days.ts` rebuild); plantas nuevas o sin `lastWateredAt` / CareEvent watering.
+**Causa:** `rebuildOutdoorWaterSchedules` hacía `if (!lastWater) continue` y no tocaba `nextWateredAt`. Esos cactus tenían next vencido (~2026-09-04) y quedaban “para hoy”.
+**Solución:** Si no hay riego base, aplicar todas las `RainDay` sobre el `nextWateredAt` actual (o hoy si falta). Re-ejecutar rebuild tras marcar lluvia.
+**Prevención:** Nunca saltear exteriores en el rebuild por falta de historial; plantas nuevas también reciben crédito de lluvia. El branch sin riego debe partir de “pendiente hoy” y reaplicar lluvias (idempotente), no desde un `nextWateredAt` ya afectado.
+
+---
+
+## 2026-09-05 — Login local: MissingSecret (no es URL Firebase)
+
+**Síntoma:** Tras Google/Firebase, `/api/auth/callback/firebase` devolvía JSON `There was a problem with the server configuration`.
+**Contexto:** `npm run dev` en localhost; `.env` tenía `FIREBASE_SERVICE_ACCOUNT_PATH` (auth forzado) pero sin `AUTH_SECRET`.
+**Causa:** Auth.js exige `AUTH_SECRET` para firmar la sesión. El error de config no era el bridge/URL de Firebase (el ID token sí llegaba).
+**Solución:** Agregar `AUTH_SECRET` (aleatorio) y `AUTH_URL=http://localhost:3000` al `.env` local; reiniciar `npm run dev`.
+**Prevención:** Al copiar `.env.example` o habilitar Firebase Admin en local, incluir siempre `AUTH_SECRET`. Alternativa para probar UI sin login: `FIREBASE_AUTH_REQUIRED=0`.
+
+---
+
+**Síntoma:** La lluvia del patio reiniciaba el riego como riego completo (`markWateredAt` / `max(lastWater, lastRain)`), sin distinguir moderada/fuerte ni permitir corregir historial.
+**Contexto:** Producto definitivo en `prompt_cursor_lluvias.md`; implementación local (sin deploy VPS aún).
+**Causa:** El flujo legado no modelaba intensidad ni reconstrucción desde eventos.
+**Solución:** Modelo `RainDay` (`none|moderate|heavy`); fórmula `dias = min(I, max(0,R)+ceil(I/3))` / fuerte=`I`; reconstrucción cronológica; UI dos botones + `/lluvias` + `/lluvias/info`; Open-Meteo solo para preguntar; scheduler con tick 30 min antes del aviso.
+**Prevención:** No volver a tratar lluvia como riego en `getEffectiveLastWateredAt` para exteriores con `nextWateredAt` reconstruido; no convertir mm de la API en crédito.
 
 ---
 

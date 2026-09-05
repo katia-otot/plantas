@@ -406,8 +406,11 @@ export async function buildBackupExport() {
   } satisfies PlantasBackup;
 }
 
-export async function restoreBackup(backup: PlantasBackup) {
-  const gid = await resolveGardenId();
+export async function restoreBackup(
+  backup: PlantasBackup,
+  gardenId?: string,
+) {
+  const gid = await resolveGardenId(gardenId);
   const plants = backup.plants ?? [];
   const birds = backup.birds ?? [];
   const gardenNotes = backup.gardenNotes ?? [];

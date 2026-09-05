@@ -181,3 +181,68 @@ export async function notifyTodayTasks(options?: {
     body: payload.body,
   };
 }
+
+export async function notifyRainAsk(options: {
+  targetDate: string;
+  url?: string;
+}): Promise<{ sent: number; failed: number }> {
+  const shared = await ensureDefaultGarden();
+  const title = "Lluvia indicada para hoy";
+  const body =
+    "Hay lluvia indicada para hoy. ¿Cómo querés contarla para el riego?";
+  const url = options.url ?? `/lluvias?fecha=${options.targetDate}`;
+
+  let sent = 0;
+  let failed = 0;
+
+  if (isFcmConfigured()) {
+    const fcm = await sendFcmToAllTokens({
+      title,
+      body,
+      url: `${process.env.PLANTAS_PUBLIC_URL || "http://149.50.156.136/plantas"}${url.startsWith("/") ? url : `/${url}`}`,
+    });
+    sent += fcm.sent;
+    failed += fcm.failed;
+  }
+
+  const subscriptions = await prisma.pushSubscription.findMany({
+    where: {
+      OR: [{ gardenId: shared.id }, { gardenId: null }],
+    },
+  });
+
+  if (subscriptions.length > 0) {
+    try {
+      configureWebPush();
+    } catch (error) {
+      console.error("Web Push VAPID no configurado", error);
+      return { sent, failed };
+    }
+
+    for (const subscription of subscriptions) {
+      try {
+        await sendPushToSubscription(subscription, {
+          title,
+          body,
+          url,
+        });
+        sent += 1;
+      } catch (error) {
+        failed += 1;
+        const statusCode =
+          error && typeof error === "object" && "statusCode" in error
+            ? Number((error as { statusCode?: number }).statusCode)
+            : null;
+        if (statusCode === 404 || statusCode === 410) {
+          await prisma.pushSubscription.delete({
+            where: { id: subscription.id },
+          });
+        } else {
+          console.error("Push rain-ask failed", subscription.endpoint, error);
+        }
+      }
+    }
+  }
+
+  return { sent, failed };
+}

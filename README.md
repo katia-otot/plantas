@@ -63,6 +63,9 @@ FIREBASE_AUTH_REQUIRED=1
 # NEXT_PUBLIC_FIREBASE_PROJECT_ID=plantas-patio
 # NEXT_PUBLIC_FIREBASE_APP_ID=...
 # NEXT_PUBLIC_FIREBASE_AUTH_BRIDGE_URL=https://plantas-patio.web.app/auth-login.html
+
+# Google Analytics 4 (opcional; visitas en analytics.google.com)
+# NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
 Ya **no** se usan `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` para el login de la app.

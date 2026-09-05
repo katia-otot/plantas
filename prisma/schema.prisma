@@ -73,6 +73,7 @@ model Garden {
   notes       GardenNote[]
   careEvents  CareEvent[]
   settings    GardenSettings?
+  rainDays    RainDay[]
   pushSubscriptions PushSubscription[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -188,14 +189,44 @@ model GardenSettings {
   id                String    @id @default(cuid())
   gardenId          String    @unique
   garden            Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  /// Última lluvia con aporte (moderate/heavy). Compatibilidad / UI.
   lastRainAt        DateTime?
   seasonOverride    String?
-  /// HH:MM (Argentina), lun–vie
-  notifyWeekdayTime String    @default("15:00")
-  /// HH:MM (Argentina), sáb–dom
+  /// HH:MM (Argentina), lun–vie — aviso de riego
+  notifyWeekdayTime String    @default("14:15")
+  /// HH:MM (Argentina), sáb–dom — aviso de riego
   notifyWeekendTime String    @default("10:30")
   lastNotifySentAt  DateTime?
+  /// Dedup pregunta meteorológica (YYYY-MM-DD local).
+  lastRainAskDate   String?
+  lastRainAskSentAt DateTime?
+  /// Coordenadas del jardín para Open-Meteo (null = no consultar automático).
+  latitude          Float?
+  longitude         Float?
+  /// Etiqueta legible (ciudad) desde geocodificación inversa.
+  locationLabel     String?
+  /// IANA TZ; por defecto Argentina.
+  timezone          String    @default("America/Argentina/Buenos_Aires")
   updatedAt         DateTime  @updatedAt
+}
+
+/// Decisión diaria de lluvia del patio (aporte al calendario).
+model RainDay {
+  id         String   @id @default(cuid())
+  gardenId   String
+  garden     Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  /// Fecha local del jardín YYYY-MM-DD
+  rainDate   String
+  /// none | moderate | heavy
+  intensity  String
+  /// user | notification | legacy_migration
+  source     String?
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([gardenId, rainDate])
+  @@index([gardenId])
 }
 
 /// Patio notes / tips — not plants.

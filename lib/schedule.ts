@@ -15,18 +15,11 @@ export function addDays(date: Date, days: number): Date {
   return startOfDay(result);
 }
 
+/** Calendario hemisferio sur: verano Dic–Feb; invierno Jun–Ago; resto primavera/otoño → invierno. */
 export function getSeason(date: Date): Season {
   const month = date.getMonth() + 1;
 
   if (month === 12 || month <= 2) {
-    return "summer";
-  }
-
-  if (month >= 6 && month <= 8) {
-    return "winter";
-  }
-
-  if (month >= 9 && month <= 11) {
     return "summer";
   }
 

@@ -1,6 +1,6 @@
 const NOTIFY_TZ = "America/Argentina/Buenos_Aires";
 
-export const DEFAULT_NOTIFY_WEEKDAY_TIME = "15:00";
+export const DEFAULT_NOTIFY_WEEKDAY_TIME = "14:15";
 export const DEFAULT_NOTIFY_WEEKEND_TIME = "10:30";
 
 export type NotificationSchedule = {
@@ -144,5 +144,48 @@ export function isNotificationDue(
     last.year === clock.year &&
     last.month === clock.month &&
     last.day === clock.day
+  );
+}
+
+export function subtractMinutesFromTime(time: string, minutes: number): string {
+  const parsed = parseNotifyTime(time);
+  if (!parsed) {
+    throw new Error("Horario inválido");
+  }
+  const [hour, minute] = parsed.split(":").map(Number);
+  let total = hour! * 60 + minute! - minutes;
+  if (total < 0) {
+    total += 24 * 60;
+  }
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+export function getRainAskSchedule(
+  schedule: NotificationSchedule,
+): NotificationSchedule {
+  return {
+    weekdayTime: subtractMinutesFromTime(schedule.weekdayTime, 30),
+    weekendTime: subtractMinutesFromTime(schedule.weekendTime, 30),
+  };
+}
+
+export function getNextRainAskAt(
+  schedule: NotificationSchedule,
+  from = new Date(),
+): Date {
+  return getNextNotificationAt(getRainAskSchedule(schedule), from);
+}
+
+export function isRainAskDue(
+  schedule: NotificationSchedule,
+  lastRainAskSentAt: Date | null,
+  now = new Date(),
+): boolean {
+  return isNotificationDue(
+    getRainAskSchedule(schedule),
+    lastRainAskSentAt,
+    now,
   );
 }

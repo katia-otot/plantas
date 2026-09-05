@@ -2,7 +2,6 @@ import type { Plant } from "@prisma/client";
 import { prisma } from "./db";
 import { assertPlantInGarden, resolveGardenId } from "./garden-access";
 import {
-  addDays,
   computeEffectiveNextWateredAt,
   computeNextWateredAt,
   getEffectiveLastWateredAt,
@@ -13,7 +12,7 @@ import {
   resolveNextWateredAt,
   startOfDay,
 } from "./schedule";
-import { formatRainDayLabel, parseCalendarDate, toInputDate } from "./format";
+import { parseCalendarDate, toInputDate } from "./format";
 import { mergeNotesIntoObservations } from "./plant-text";
 import {
   DEFAULT_NOTIFY_WEEKDAY_TIME,
@@ -200,6 +199,9 @@ export async function getGardenSettings(
   gardenId?: string,
 ): Promise<GardenSettingsData> {
   const gid = await resolveGardenId(gardenId);
+  const { migrateLegacyLastRainAt } = await import("@/lib/rain-days");
+  await migrateLegacyLastRainAt(gid);
+
   const settings = await prisma.gardenSettings.upsert({
     where: { gardenId: gid },
     create: { gardenId: gid },
@@ -316,20 +318,17 @@ async function recalculateAllWaterSchedules(
   seasonOverride: Season | null,
   gardenId?: string,
 ) {
+  const { rebuildOutdoorWaterSchedules } = await import("@/lib/rain-days");
   const gid = await resolveGardenId(gardenId);
-  const lastGlobalRainAt = await getLastGlobalRainAt(gid);
-  const plants = await prisma.plant.findMany({ where: { gardenId: gid } });
+  await rebuildOutdoorWaterSchedules(gid, seasonOverride);
+
+  // Indoor plants: recompute from lastWateredAt only (rain ignored).
+  const plants = await prisma.plant.findMany({
+    where: { gardenId: gid, isIndoor: true },
+  });
   const today = new Date();
-
   for (const plant of plants) {
-    const effectiveLast = getEffectiveLastWateredAt(plant, lastGlobalRainAt);
-    const nextWateredAt = computeEffectiveNextWateredAt(
-      { ...plant, lastWateredAt: effectiveLast },
-      lastGlobalRainAt,
-      today,
-      seasonOverride,
-    );
-
+    const nextWateredAt = computeNextWateredAt(plant, today, seasonOverride);
     await prisma.plant.update({
       where: { id: plant.id },
       data: { nextWateredAt },
@@ -785,118 +784,22 @@ export async function performPlantAction(
 }
 
 export async function applyRainToAllPlants(happenedAt: Date = new Date()) {
-  const gid = await resolveGardenId();
-  const rainAt = startOfDay(happenedAt);
-  const settings = await getGardenSettings(gid);
-  if (
-    settings.lastRainAt &&
-    startOfDay(settings.lastRainAt).getTime() === rainAt.getTime()
-  ) {
-    return { plantsUpdated: 0, alreadyRecorded: true as const };
-  }
-
-  await recordGlobalRain(rainAt, gid);
-  const gardenSettings = await getGardenSettings(gid);
-  const plants = await prisma.plant.findMany({
-    where: { gardenId: gid, isIndoor: false, ...activePlantWhere },
-  });
-
-  for (const plant of plants) {
-    const schedule = markWateredAt(
-      plant,
-      rainAt,
-      gardenSettings.seasonOverride,
-    );
-    await prisma.plant.update({
-      where: { id: plant.id },
-      data: { nextWateredAt: schedule.nextWateredAt },
-    });
-  }
-
-  await prisma.careEvent.create({
-    data: {
-      gardenId: gid,
-      plantId: null,
-      type: "rain_skip",
-      happenedAt: rainAt,
-      notes: formatRainDayLabel(rainAt),
-    },
-  });
-
-  return { plantsUpdated: plants.length, alreadyRecorded: false as const };
+  const { setTodaysRainIntensity } = await import("@/lib/rain-days");
+  const result = await setTodaysRainIntensity("heavy", happenedAt);
+  return {
+    plantsUpdated: result.plantsUpdated,
+    alreadyRecorded: !result.changed,
+    intensity: result.rainDay.intensity,
+  };
 }
 
 export async function undoTodaysRain(now: Date = new Date()) {
-  const gid = await resolveGardenId();
-  const today = startOfDay(now);
-  const tomorrow = addDays(today, 1);
-
-  await prisma.careEvent.deleteMany({
-    where: {
-      gardenId: gid,
-      type: "rain_skip",
-      happenedAt: { gte: today, lt: tomorrow },
-    },
-  });
-
-  const previousRain = await prisma.careEvent.findFirst({
-    where: { gardenId: gid, type: "rain_skip" },
-    orderBy: { happenedAt: "desc" },
-    select: { happenedAt: true },
-  });
-  const previousRainAt = previousRain
-    ? startOfDay(previousRain.happenedAt)
-    : null;
-
-  await prisma.gardenSettings.upsert({
-    where: { gardenId: gid },
-    create: { gardenId: gid, lastRainAt: previousRainAt },
-    update: { lastRainAt: previousRainAt },
-  });
-
-  const gardenSettings = await getGardenSettings(gid);
-  const plants = await prisma.plant.findMany({
-    where: { gardenId: gid, isIndoor: false, ...activePlantWhere },
-  });
-
-  for (const plant of plants) {
-    // If a past rain had overwritten lastWateredAt to "today", restore from
-    // the last real watering event when possible.
-    let lastWateredAt = plant.lastWateredAt
-      ? startOfDay(plant.lastWateredAt)
-      : null;
-    if (lastWateredAt && lastWateredAt.getTime() === today.getTime()) {
-      const lastWatering = await prisma.careEvent.findFirst({
-        where: { plantId: plant.id, type: "watering" },
-        orderBy: { happenedAt: "desc" },
-        select: { happenedAt: true },
-      });
-      lastWateredAt = lastWatering
-        ? startOfDay(lastWatering.happenedAt)
-        : null;
-    }
-
-    const nextWateredAt = computeEffectiveNextWateredAt(
-      {
-        waterSummerDays: plant.waterSummerDays,
-        waterWinterDays: plant.waterWinterDays,
-        lastWateredAt,
-        isIndoor: plant.isIndoor,
-      },
-      previousRainAt,
-      now,
-      gardenSettings.seasonOverride,
-    );
-
-    await prisma.plant.update({
-      where: { id: plant.id },
-      data: { lastWateredAt, nextWateredAt },
-    });
-  }
-
+  const { setTodaysRainIntensity } = await import("@/lib/rain-days");
+  const result = await setTodaysRainIntensity("none", now);
   return {
-    lastRainAt: previousRainAt,
-    plantCount: plants.length,
+    lastRainAt: null as Date | null,
+    plantCount: result.plantsUpdated,
+    intensity: result.rainDay.intensity,
   };
 }
 
