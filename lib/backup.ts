@@ -97,6 +97,7 @@ export type PlantasBackup = {
   settings?: {
     lastRainAt?: string | null;
     seasonOverride?: string | null;
+    mapImagePath?: string | null;
     updatedAt?: string;
   } | null;
   plants?: BackupPlant[];
@@ -286,6 +287,9 @@ export async function buildBackupExport() {
       photoPaths.add(bird.coverPhotoPath);
     }
   }
+  if (settings?.mapImagePath) {
+    photoPaths.add(settings.mapImagePath);
+  }
 
   const files: Record<string, BackupFileEntry> = {};
 
@@ -306,6 +310,7 @@ export async function buildBackupExport() {
       ? {
           lastRainAt: settings.lastRainAt?.toISOString() ?? null,
           seasonOverride: settings.seasonOverride,
+          mapImagePath: settings.mapImagePath,
           updatedAt: settings.updatedAt.toISOString(),
         }
       : null,
@@ -641,10 +646,12 @@ export async function restoreBackup(
             gardenId: gid,
             lastRainAt: parseDate(backup.settings.lastRainAt),
             seasonOverride: backup.settings.seasonOverride ?? null,
+            mapImagePath: backup.settings.mapImagePath?.trim() || null,
           },
           update: {
             lastRainAt: parseDate(backup.settings.lastRainAt),
             seasonOverride: backup.settings.seasonOverride ?? null,
+            mapImagePath: backup.settings.mapImagePath?.trim() || null,
           },
         });
       }

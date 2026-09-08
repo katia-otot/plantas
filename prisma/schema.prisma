@@ -207,6 +207,8 @@ model GardenSettings {
   locationLabel     String?
   /// IANA TZ; por defecto Argentina.
   timezone          String    @default("America/Argentina/Buenos_Aires")
+  /// Plano del mapa (`/api/uploads/...`). Null = sin plano cargado.
+  mapImagePath      String?
   updatedAt         DateTime  @updatedAt
 }
 

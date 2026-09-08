@@ -25,7 +25,7 @@ const MAX_ZOOM = 4;
 
 type Props = {
   plants: MapPlant[];
-  mapSrc: string;
+  mapSrc: string | null;
 };
 
 type DragState =
@@ -624,16 +624,29 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
             transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
           }}
         >
-          <Image
-            src={mapSrc}
-            alt="Plano del patio"
-            fill
-            data-map-bg="1"
-            className="pointer-events-none object-contain"
-            sizes="(max-width: 768px) 100vw, 512px"
-            priority
-            draggable={false}
-          />
+          {mapSrc ? (
+            <Image
+              key={mapSrc}
+              src={mapSrc}
+              alt="Plano del patio"
+              fill
+              data-map-bg="1"
+              className="pointer-events-none object-contain"
+              sizes="(max-width: 768px) 100vw, 512px"
+              priority
+              draggable={false}
+            />
+          ) : (
+            <div
+              data-map-bg="1"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center bg-emerald-50/80 px-6 text-center"
+            >
+              <p className="max-w-xs text-sm font-medium text-emerald-900/70">
+                Sin plano cargado. Usá “Cargar plano” arriba para subir la
+                imagen de tu casa.
+              </p>
+            </div>
+          )}
 
           {placed.map((plant) => {
             const size = plant.mapSize ?? DEFAULT_SIZE;

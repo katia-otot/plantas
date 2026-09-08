@@ -1,15 +1,18 @@
 import { ActionIcon } from "@/components/ActionIcon";
+import { MapFloorPlanControls } from "@/components/MapFloorPlanControls";
 import { PatioMapBoard, type MapPlant } from "@/components/PatioMapBoard";
 import { withBasePath } from "@/lib/base-path";
+import { getMapImagePath } from "@/lib/map-image";
 import { getGardenSettings, listActivePlants } from "@/lib/plants";
 import { getPlantDueTasks, getWorstStatus } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
 export default async function PatioMapPage() {
-  const [plants, gardenSettings] = await Promise.all([
+  const [plants, gardenSettings, mapImage] = await Promise.all([
     listActivePlants(),
     getGardenSettings(),
+    getMapImagePath(),
   ]);
 
   const mapPlants: MapPlant[] = plants.map((plant) => {
@@ -42,9 +45,11 @@ export default async function PatioMapPage() {
         </div>
       </header>
 
+      <MapFloorPlanControls hasPlan={mapImage.hasPlan} />
+
       <PatioMapBoard
         plants={mapPlants}
-        mapSrc={withBasePath("/maps/patio-plano.png?v=2")}
+        mapSrc={mapImage.mapSrc ? withBasePath(mapImage.mapSrc) : null}
       />
     </main>
   );
