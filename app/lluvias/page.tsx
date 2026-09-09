@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { withBasePath } from "@/lib/base-path";
 import { listRainDays } from "@/lib/rain-days";
 import { RainHistoryEditor } from "@/components/RainHistoryEditor";
 
@@ -22,7 +21,7 @@ export default async function RainHistoryPage() {
           Podés corregir o marcar “No cuenta”. Las fechas se recalculan.
         </p>
         <Link
-          href={withBasePath("/lluvias/info")}
+          href="/lluvias/info"
           className="inline-block text-sm font-medium text-sky-800 underline-offset-2 hover:underline"
         >
           Cómo se cuentan las lluvias

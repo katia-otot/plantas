@@ -1,3 +1,53 @@
+## 2026-09-09 — Link a /lluvias/info da 404 en VPS (`/plantas/plantas/...`)
+
+**Síntoma:** En producción el ícono “!” de lluvias iba a `…/plantas/plantas/lluvias/info` (404). En local (sin basePath) andaba.
+**Contexto:** `NEXT_PUBLIC_BASE_PATH=/plantas` en VPS; `Link` de Next.js.
+**Causa:** `href={withBasePath("/lluvias/info")}` — Next ya prefija el basePath en `Link`, y `withBasePath` lo duplicaba.
+**Solución:** Usar `href="/lluvias/info"` en `Link` (`RainAllButton`, `app/lluvias/page.tsx`). Seguir usando `withBasePath` solo en `fetch`/`img`/`<a>` crudos.
+**Prevención:** No envolver rutas de `next/link` (ni `router.push` de app) con `withBasePath`.
+
+---
+
+## 2026-09-09 — Restore respaldo: 10MB + Hoy vacío
+
+**Síntoma:** Restaurar JSON desde el menú falla (`Failed to parse body as FormData`). Tras restore por script, Hoy no muestra riegos aunque el backup sí tenía.
+**Contexto:** `anthos-respaldo-2026-09-09.json` ~13.8MB; middleware clona el body (límite 10MB). Script `restore-local-backup.ts` marcaba lluvias heavy y corría `rebuildOutdoorWaterSchedules`.
+**Causa:** Body truncado → FormData roto. El rebuild recalculaba `nextWateredAt` y corrían las fechas “para hoy” del JSON.
+**Solución:** `experimental.middlewareClientMaxBodySize: "50mb"` en `next.config.ts`. Script por defecto preserva `nextWateredAt` del backup (solo `--with-rain-rebuild` recalcula).
+**Prevención:** No rebuild de lluvia en restore “tal cual”; subir límite de body si el respaldo lleva fotos embebidas.
+
+---
+
+## 2026-09-08 — Guardar circuito: timeout Prisma P2028
+
+**Síntoma:** Alert/console `No se pudo guardar el circuito`; API `PUT /api/walk-circuit` 500.
+**Contexto:** Mapa, salir del modo circuito; SQLite en OneDrive.
+**Causa:** Transacción Prisma (default 5s) vencía al escribir tramos / actualizar `walkOrder` de muchas plantas.
+**Solución:** Timeout 60s en esas transacciones; en `recalculateWalkOrders` solo actualizar plantas cuyo `walkOrder` cambió.
+**Prevención:** Evitar N updates innecesarios en un solo `$transaction` corto; subir timeout si el DB está en OneDrive.
+
+---
+
+## 2026-09-08 — `prisma generate` EPERM en Windows con `next dev`
+
+**Síntoma:** `EPERM: operation not permitted, rename ... query_engine-windows.dll.node` al correr `prisma generate` o `npm run build`.
+**Contexto:** Windows; `next dev` (u otro Node) tiene bloqueado el DLL de Prisma.
+**Causa:** El proceso de Next mantiene abierto `query_engine-windows.dll.node`.
+**Solución:** Parar los `node`/`next` que usan el proyecto, luego `npx prisma generate` (y `npm run build` / `npm run dev`).
+**Prevención:** Antes de regenerar el client o buildear tras cambios de schema, cerrar el dev server local.
+
+---
+
+## 2026-09-08 — Mapa VPS sin plano tras quitar fallback estático
+
+**Síntoma:** Tras deploy del plano por jardín, el patio compartido en VPS aparecía sin plano.
+**Contexto:** Se dejó de usar `public/maps/patio-plano.png` como default; `GardenSettings.mapImagePath` quedó null.
+**Causa:** El PNG seguía en disco pero el código ya no lo leía; no se había asignado `mapImagePath` en producción.
+**Solución:** Copiar `/opt/plantas/public/maps/patio-plano.png` a `data/uploads/` y setear `mapImagePath` del garden `slug=default`. Verificar HTTP 200 del upload.
+**Prevención:** Al sacar un asset estático del mapa, migrar el patio compartido en VPS en el mismo cambio (o subir el plano desde la UI) antes de dar por cerrado el deploy.
+
+---
+
 ## 2026-09-05 — Lluvia no corría cactus sin historial de riego
 
 **Síntoma:** Con lluvia moderada hoy, Cactus Espiral y Cáctus bracitos delicados seguían en Hoy para regar; Aloe/Lavanda (mismo intervalo 14) no.

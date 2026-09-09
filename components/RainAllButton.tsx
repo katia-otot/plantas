@@ -95,7 +95,7 @@ export function RainAllButton({
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-sky-950">¿Llovió hoy?</h2>
         <Link
-          href={withBasePath("/lluvias/info")}
+          href="/lluvias/info"
           aria-label="Información de lluvias"
           title="Información de lluvias"
           className="rounded-full p-1.5 text-sky-800 hover:bg-sky-100"
