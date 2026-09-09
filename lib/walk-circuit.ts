@@ -167,13 +167,16 @@ export async function recalculateWalkOrders(gardenId: string) {
   }
 
   // OneDrive SQLite can be slow; avoid the default 5s interactive timeout.
+  // Array form of $transaction does not accept timeout — use interactive.
   await prisma.$transaction(
-    updates.map((item) =>
-      prisma.plant.update({
-        where: { id: item.id },
-        data: { walkOrder: item.walkOrder },
-      }),
-    ),
+    async (tx) => {
+      for (const item of updates) {
+        await tx.plant.update({
+          where: { id: item.id },
+          data: { walkOrder: item.walkOrder },
+        });
+      }
+    },
     { timeout: 60_000 },
   );
 
