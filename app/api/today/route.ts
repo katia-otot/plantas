@@ -6,13 +6,8 @@ import {
 } from "@/lib/plants";
 import { toPlantCareSchedule } from "@/lib/care-schedule";
 import { getEffectiveSeason, getPlantDueTasks, getSeason } from "@/lib/schedule";
-import type { DueStatus, PlantTask } from "@/lib/types";
-
-function statusPriority(status: DueStatus): number {
-  if (status === "overdue") return 0;
-  if (status === "due") return 1;
-  return 2;
-}
+import { compareTodayTasks } from "@/lib/today-task-sort";
+import type { PlantTask } from "@/lib/types";
 
 export async function GET() {
   const [plants, gardenSettings] = await Promise.all([
@@ -46,16 +41,14 @@ export async function GET() {
     }
   }
 
-  tasks.sort((a, b) => {
-    const statusDiff = statusPriority(a.status) - statusPriority(b.status);
-    if (statusDiff !== 0) {
-      return statusDiff;
-    }
-    return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+  const withOrder = tasks.map((task) => {
+    const plant = plants.find((item) => item.id === task.plantId);
+    return { ...task, walkOrder: plant?.walkOrder ?? null };
   });
+  withOrder.sort(compareTodayTasks);
 
   return NextResponse.json({
-    tasks,
+    tasks: withOrder,
     season: getEffectiveSeason(today, gardenSettings.seasonOverride),
     calendarSeason: getSeason(today),
     seasonOverride: gardenSettings.seasonOverride,

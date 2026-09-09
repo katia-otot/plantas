@@ -5,14 +5,16 @@ import { withBasePath } from "@/lib/base-path";
 import { getMapImagePath } from "@/lib/map-image";
 import { getGardenSettings, listActivePlants } from "@/lib/plants";
 import { getPlantDueTasks, getWorstStatus } from "@/lib/schedule";
+import { getWalkCircuit } from "@/lib/walk-circuit";
 
 export const dynamic = "force-dynamic";
 
 export default async function PatioMapPage() {
-  const [plants, gardenSettings, mapImage] = await Promise.all([
+  const [plants, gardenSettings, mapImage, circuit] = await Promise.all([
     listActivePlants(),
     getGardenSettings(),
     getMapImagePath(),
+    getWalkCircuit(),
   ]);
 
   const mapPlants: MapPlant[] = plants.map((plant) => {
@@ -45,12 +47,13 @@ export default async function PatioMapPage() {
         </div>
       </header>
 
-      <MapFloorPlanControls hasPlan={mapImage.hasPlan} />
-
       <PatioMapBoard
         plants={mapPlants}
         mapSrc={mapImage.mapSrc ? withBasePath(mapImage.mapSrc) : null}
+        initialCircuit={circuit.strokes}
       />
+
+      <MapFloorPlanControls hasPlan={mapImage.hasPlan} />
     </main>
   );
 }

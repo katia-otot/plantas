@@ -1,6 +1,9 @@
 /**
- * One-shot: restore local DB from a JSON backup and mark past rains as heavy.
+ * Restore local DB from a JSON backup, preserving nextWateredAt from the file.
  * Usage: npx tsx scripts/restore-local-backup.ts [path-to-json]
+ *
+ * Optional: --with-rain-rebuild marks historical rains as heavy and rebuilds
+ * outdoor schedules (can clear "Hoy" compared to the backup dates).
  */
 import { readFileSync } from "fs";
 import { parseBackupJson, restoreBackup } from "../lib/backup";
@@ -13,9 +16,11 @@ import {
 import { rebuildOutdoorWaterSchedules } from "../lib/rain-days";
 
 async function main() {
+  const args = process.argv.slice(2);
+  const withRainRebuild = args.includes("--with-rain-rebuild");
   const backupPath =
-    process.argv[2] ||
-    "C:/Users/katia/Downloads/anthos-respaldo-2026-09-05.json";
+    args.find((arg) => !arg.startsWith("--")) ||
+    "C:/Users/katia/Downloads/anthos-respaldo-2026-09-09.json";
 
   const garden = await ensureDefaultGarden();
   const gid = garden.id;
@@ -47,42 +52,15 @@ async function main() {
   const result = await restoreBackup(backup, gid);
   console.log("restore result", result);
 
-  // Mark every historical patio rain as heavy RainDay.
-  const rainEvents = await prisma.careEvent.findMany({
-    where: { gardenId: gid, type: "rain_skip", plantId: null },
-    orderBy: { happenedAt: "asc" },
-  });
+  // RainDay is not in the backup JSON; clear local rows so they don't diverge
+  // from the restored nextWateredAt unless the caller asks to rebuild.
+  await prisma.rainDay.deleteMany({ where: { gardenId: gid } });
+  console.log("Cleared local RainDay rows");
 
+  // Restore climate location if we had one.
   const settings = await prisma.gardenSettings.findUnique({
     where: { gardenId: gid },
   });
-
-  const dates = new Set<string>();
-  for (const event of rainEvents) {
-    dates.add(toCalendarDateString(event.happenedAt));
-  }
-  if (settings?.lastRainAt) {
-    dates.add(toCalendarDateString(settings.lastRainAt));
-  }
-
-  for (const rainDate of dates) {
-    await prisma.rainDay.upsert({
-      where: { gardenId_rainDate: { gardenId: gid, rainDate } },
-      create: {
-        gardenId: gid,
-        rainDate,
-        intensity: "heavy",
-        source: "legacy_migration",
-      },
-      update: {
-        intensity: "heavy",
-        source: "legacy_migration",
-      },
-    });
-  }
-  console.log("RainDay heavy rows:", dates.size, [...dates]);
-
-  // Restore climate location if we had one.
   if (before?.latitude != null && before?.longitude != null) {
     await prisma.gardenSettings.upsert({
       where: { gardenId: gid },
@@ -109,17 +87,52 @@ async function main() {
     );
   }
 
-  // Sync lastRainAt to latest heavy rain.
-  const latestRain = [...dates].sort().at(-1);
-  if (latestRain) {
-    await prisma.gardenSettings.update({
-      where: { gardenId: gid },
-      data: { lastRainAt: calendarDateToDate(latestRain) },
+  if (withRainRebuild) {
+    const rainEvents = await prisma.careEvent.findMany({
+      where: { gardenId: gid, type: "rain_skip", plantId: null },
+      orderBy: { happenedAt: "asc" },
     });
-  }
 
-  const rebuilt = await rebuildOutdoorWaterSchedules(gid);
-  console.log("schedules rebuilt", rebuilt);
+    const dates = new Set<string>();
+    for (const event of rainEvents) {
+      dates.add(toCalendarDateString(event.happenedAt));
+    }
+    if (settings?.lastRainAt) {
+      dates.add(toCalendarDateString(settings.lastRainAt));
+    }
+
+    for (const rainDate of dates) {
+      await prisma.rainDay.upsert({
+        where: { gardenId_rainDate: { gardenId: gid, rainDate } },
+        create: {
+          gardenId: gid,
+          rainDate,
+          intensity: "heavy",
+          source: "legacy_migration",
+        },
+        update: {
+          intensity: "heavy",
+          source: "legacy_migration",
+        },
+      });
+    }
+    console.log("RainDay heavy rows:", dates.size, [...dates]);
+
+    const latestRain = [...dates].sort().at(-1);
+    if (latestRain) {
+      await prisma.gardenSettings.update({
+        where: { gardenId: gid },
+        data: { lastRainAt: calendarDateToDate(latestRain) },
+      });
+    }
+
+    const rebuilt = await rebuildOutdoorWaterSchedules(gid);
+    console.log("schedules rebuilt", rebuilt);
+  } else {
+    console.log(
+      "Preserved nextWateredAt from backup (no rain rebuild). Pass --with-rain-rebuild to recalculate.",
+    );
+  }
 
   const plants = await prisma.plant.count({ where: { gardenId: gid } });
   const withMap = await prisma.plant.count({
@@ -131,8 +144,15 @@ async function main() {
       coverPhotoPath: { not: null },
     },
   });
-  const rains = await prisma.rainDay.count({ where: { gardenId: gid } });
-  console.log({ plants, withMap, withPhoto, rains });
+  const dueToday = await prisma.plant.count({
+    where: {
+      gardenId: gid,
+      status: "alta",
+      isIndoor: false,
+      nextWateredAt: { lte: new Date() },
+    },
+  });
+  console.log({ plants, withMap, withPhoto, dueTodayApprox: dueToday });
 }
 
 main()

@@ -75,6 +75,7 @@ model Garden {
   settings    GardenSettings?
   rainDays    RainDay[]
   pushSubscriptions PushSubscription[]
+  walkCircuit WalkCircuit?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -146,6 +147,8 @@ model Plant {
   mapY             Float?
   /// Marker diameter as percent of map width (default ~9).
   mapSize          Float?
+  /// Order along the patio walk circuit (null = not on map / no circuit).
+  walkOrder        Int?
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -154,6 +157,7 @@ model Plant {
   photos Photo[]
 
   @@index([gardenId])
+  @@index([gardenId, walkOrder])
 }
 
 model CareEvent {
@@ -210,6 +214,30 @@ model GardenSettings {
   /// Plano del mapa (`/api/uploads/...`). Null = sin plano cargado.
   mapImagePath      String?
   updatedAt         DateTime  @updatedAt
+}
+
+/// Circuito de riego dibujado en el mapa (1 por patio).
+model WalkCircuit {
+  id        String       @id @default(cuid())
+  gardenId  String       @unique
+  garden    Garden       @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  strokes   WalkStroke[]
+  updatedAt DateTime     @updatedAt
+  createdAt DateTime     @default(now())
+}
+
+/// Un tramo del circuito (orden = index: 0, 1, 2…).
+model WalkStroke {
+  id        String      @id @default(cuid())
+  circuitId String
+  circuit   WalkCircuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  /// Orden del tramo en el recorrido.
+  index     Int
+  /// Puntos en % del mapa: JSON [{x,y},…]
+  pointsJson String
+
+  @@unique([circuitId, index])
+  @@index([circuitId])
 }
 
 /// Decisión diaria de lluvia del patio (aporte al calendario).

@@ -1,5 +1,6 @@
 import { getGardenSettings, listActivePlants } from "@/lib/plants";
 import { getPlantDueTasks } from "@/lib/schedule";
+import { compareTodayTasks } from "@/lib/today-task-sort";
 import { TASK_LABELS, type Season, type TaskType } from "@/lib/types";
 
 export type TodayTaskSummary = {
@@ -8,6 +9,7 @@ export type TodayTaskSummary = {
   taskType: TaskType;
   dueAt: string;
   status: "due" | "overdue";
+  walkOrder?: number | null;
 };
 
 export async function getTodayTaskSummaries(
@@ -42,18 +44,12 @@ export async function getTodayTaskSummaries(
         taskType: task.taskType,
         dueAt: task.dueAt.toISOString(),
         status: task.status as "due" | "overdue",
+        walkOrder: plant.walkOrder,
       });
     }
   }
 
-  tasks.sort((a, b) => {
-    const priority = { overdue: 0, due: 1 } as const;
-    const diff = priority[a.status] - priority[b.status];
-    if (diff !== 0) {
-      return diff;
-    }
-    return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
-  });
+  tasks.sort(compareTodayTasks);
 
   return tasks;
 }

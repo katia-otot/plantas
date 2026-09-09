@@ -2,9 +2,16 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { activateMapPlant } from "@/lib/map-plant-activate";
 import { withBasePath } from "@/lib/base-path";
+import {
+  connectionPreviews,
+  type WalkStrokeData,
+  type WalkPoint,
+} from "@/lib/walk-circuit-geometry";
+import { WalkCircuitOverlay } from "@/components/WalkCircuitOverlay";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { DueStatus } from "@/lib/types";
 
 export type MapPlant = {
@@ -22,10 +29,12 @@ const MIN_SIZE = 5;
 const MAX_SIZE = 22;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+const DRAW_SAMPLE_MIN = 0.8;
 
 type Props = {
   plants: MapPlant[];
   mapSrc: string | null;
+  initialCircuit?: WalkStrokeData[];
 };
 
 type DragState =
@@ -47,6 +56,9 @@ type DragState =
       startY: number;
       originPanX: number;
       originPanY: number;
+    }
+  | {
+      kind: "draw";
     };
 
 type PinchState = {
@@ -72,11 +84,13 @@ function pointerDistance(
 function MapControlButton({
   label,
   active,
+  disabled,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -85,9 +99,10 @@ function MapControlButton({
       type="button"
       aria-label={label}
       title={label}
+      disabled={disabled}
       onClick={onClick}
       onPointerDown={(event) => event.stopPropagation()}
-      className={`pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full shadow-md backdrop-blur-sm transition-colors ${
+      className={`pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full shadow-md backdrop-blur-sm transition-colors disabled:opacity-40 ${
         active
           ? "bg-amber-500 text-white"
           : "bg-white/92 text-emerald-900 hover:bg-white"
@@ -126,6 +141,54 @@ function CheckIcon() {
   );
 }
 
+function PathIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M4 18c3-1 5-6 8-6s5 5 8 6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="4" cy="18" r="1.6" fill="currentColor" />
+      <circle cx="20" cy="18" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function EyeIcon({ open }: { open: boolean }) {
+  if (!open) {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+        <path
+          d="M4 12s3.5-6 8-6 8 6 8 6-3.5 6-8 6-8-6-8-6Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="m5 5 14 14"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M2.5 12s3.8-6.5 9.5-6.5S21.5 12 21.5 12s-3.8 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 function ZoomResetIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
@@ -146,13 +209,78 @@ function ZoomResetIcon() {
   );
 }
 
-export function PatioMapBoard({ plants, mapSrc }: Props) {
+function UndoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M9 14 4 9l5-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 9h11a5 5 0 0 1 0 10h-3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M4 7h16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 7V5.8A1.8 1.8 0 0 1 10.8 4h2.4A1.8 1.8 0 0 1 15 5.8V7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.5 7 7.4 19.1A1.8 1.8 0 0 0 9.2 20.8h5.6a1.8 1.8 0 0 0 1.8-1.7L17.5 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 11v6M14 11v6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function PatioMapBoard({
+  plants,
+  mapSrc,
+  initialCircuit = [],
+}: Props) {
   const router = useRouter();
   const viewportRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<PinchState | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [circuitMode, setCircuitMode] = useState(false);
+  const [showCircuit, setShowCircuit] = useState(false);
+  const [strokes, setStrokes] = useState<WalkStrokeData[]>(initialCircuit);
+  const [draftPoints, setDraftPoints] = useState<WalkPoint[]>([]);
+  const [circuitDirty, setCircuitDirty] = useState(false);
+  const [savingCircuit, setSavingCircuit] = useState(false);
+  const [confirmClearCircuit, setConfirmClearCircuit] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [namedId, setNamedId] = useState<string | null>(null);
   const lastTapRef = useRef<{ id: string; at: number } | null>(null);
@@ -172,6 +300,7 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
   const scaleRef = useRef(1);
   const panXRef = useRef(0);
   const panYRef = useRef(0);
+  const draftRef = useRef<WalkPoint[]>([]);
 
   const placed = local.filter(
     (plant) => plant.mapX != null && plant.mapY != null,
@@ -179,6 +308,25 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
   const unplaced = local.filter(
     (plant) => plant.mapX == null || plant.mapY == null,
   );
+
+  const connections = useMemo(() => {
+    if (!showCircuit && !circuitMode) {
+      return [];
+    }
+    const placedPlants = placed
+      .filter((plant) => plant.mapX != null && plant.mapY != null)
+      .map((plant) => ({
+        id: plant.id,
+        name: plant.name,
+        mapX: plant.mapX!,
+        mapY: plant.mapY!,
+      }));
+    const allStrokes =
+      draftPoints.length >= 2
+        ? [...strokes, { index: strokes.length, points: draftPoints }]
+        : strokes;
+    return connectionPreviews(placedPlants, allStrokes);
+  }, [placed, strokes, draftPoints, showCircuit, circuitMode]);
 
   function clampPan(nextScale: number, nextPanX: number, nextPanY: number) {
     const viewport = viewportRef.current;
@@ -196,7 +344,6 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
   }
 
   function commitTransform(nextScale: number, nextPanX: number, nextPanY: number) {
-    // Snap fully out so page scroll on the map works again.
     const safeScale =
       nextScale <= MIN_ZOOM + 0.02 ? MIN_ZOOM : clamp(nextScale, MIN_ZOOM, MAX_ZOOM);
     const clamped =
@@ -260,6 +407,31 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
       setLocal(plants.map((p) => ({ ...p, mapSize: p.mapSize ?? DEFAULT_SIZE })));
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function saveCircuit(nextStrokes: WalkStrokeData[]) {
+    setSavingCircuit(true);
+    try {
+      const response = await fetch(withBasePath("/api/walk-circuit"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          strokes: nextStrokes.map((stroke) => ({ points: stroke.points })),
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("No se pudo guardar el circuito");
+      }
+      const data = (await response.json()) as { strokes: WalkStrokeData[] };
+      setStrokes(data.strokes);
+      setCircuitDirty(false);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo guardar el circuito");
+    } finally {
+      setSavingCircuit(false);
     }
   }
 
@@ -333,6 +505,20 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     commitTransform(nextScale, nextPanX, nextPanY);
   }
 
+  function appendDraftPoint(point: WalkPoint) {
+    const current = draftRef.current;
+    const last = current[current.length - 1];
+    if (
+      last &&
+      Math.hypot(point.x - last.x, point.y - last.y) < DRAW_SAMPLE_MIN
+    ) {
+      return;
+    }
+    const next = [...current, point];
+    draftRef.current = next;
+    setDraftPoints(next);
+  }
+
   function onPointerDownViewport(event: React.PointerEvent) {
     pointersRef.current.set(event.pointerId, {
       x: event.clientX,
@@ -345,8 +531,17 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
       return;
     }
 
-    // When zoomed, pan from anywhere — including plant pins.
-    // In edit mode, plant move/resize call stopPropagation so they win.
+    if (circuitMode && pointersRef.current.size === 1) {
+      event.preventDefault();
+      movedRef.current = false;
+      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+      const point = clientToPercent(event.clientX, event.clientY);
+      draftRef.current = [point];
+      setDraftPoints([point]);
+      setDrag({ kind: "draw" });
+      return;
+    }
+
     if (pointersRef.current.size === 1 && scale > 1) {
       event.preventDefault();
       movedRef.current = false;
@@ -380,6 +575,12 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     }
 
     movedRef.current = true;
+    if (drag.kind === "draw") {
+      event.preventDefault();
+      appendDraftPoint(clientToPercent(event.clientX, event.clientY));
+      return;
+    }
+
     if (drag.kind === "pan") {
       const clamped = clampPan(
         scale,
@@ -425,6 +626,20 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
       return;
     }
 
+    if (drag.kind === "draw") {
+      const points = draftRef.current;
+      setDrag(null);
+      draftRef.current = [];
+      setDraftPoints([]);
+      if (points.length >= 2) {
+        setStrokes((current) => {
+          setCircuitDirty(true);
+          return [...current, { index: current.length, points }];
+        });
+      }
+      return;
+    }
+
     if (drag.kind === "pan") {
       setDrag(null);
       if (scaleRef.current <= MIN_ZOOM + 0.02) {
@@ -441,7 +656,7 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     void persist(plant.id, {
       mapX: plant.mapX,
       mapY: plant.mapY,
-      mapSize: plant.mapSize,
+      mapSize: plant.mapSize ?? DEFAULT_SIZE,
     });
   }
 
@@ -449,30 +664,21 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     event: React.PointerEvent,
     plant: (typeof local)[number],
   ) {
-    if (!editMode || pointersRef.current.size > 1) {
+    if (!editMode || circuitMode || plant.mapX == null || plant.mapY == null) {
       return;
     }
-    if (selectedId !== plant.id) {
-      event.preventDefault();
-      event.stopPropagation();
-      setSelectedId(plant.id);
-      return;
-    }
-    event.preventDefault();
     event.stopPropagation();
+    event.preventDefault();
     movedRef.current = false;
+    setSelectedId(plant.id);
     const board = boardRef.current;
-    if (!board || plant.mapX == null || plant.mapY == null) {
+    if (!board) {
       return;
     }
     const rect = board.getBoundingClientRect();
     const centerX = rect.left + (plant.mapX / 100) * rect.width;
     const centerY = rect.top + (plant.mapY / 100) * rect.height;
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
-    pointersRef.current.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
-    });
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     setDrag({
       kind: "move",
       id: plant.id,
@@ -485,17 +691,13 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     event: React.PointerEvent,
     plant: (typeof local)[number],
   ) {
-    if (!editMode || selectedId !== plant.id || pointersRef.current.size > 1) {
+    if (!editMode || circuitMode) {
       return;
     }
-    event.preventDefault();
     event.stopPropagation();
+    event.preventDefault();
     movedRef.current = false;
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
-    pointersRef.current.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
-    });
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     setDrag({
       kind: "resize",
       id: plant.id,
@@ -536,14 +738,58 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
   }
 
   function toggleEditMode() {
+    setCircuitMode(false);
     setEditMode((value) => {
       if (value) {
         setSelectedId(null);
       } else {
         setNamedId(null);
+        setShowCircuit(false);
       }
       return !value;
     });
+  }
+
+  function toggleCircuitMode() {
+    setEditMode(false);
+    setSelectedId(null);
+    if (circuitMode) {
+      const dirty = circuitDirty;
+      const toSave = strokes;
+      setCircuitMode(false);
+      if (dirty) {
+        void saveCircuit(toSave);
+      }
+      return;
+    }
+    setNamedId(null);
+    setShowCircuit(true);
+    setCircuitMode(true);
+  }
+
+  function undoLastStroke() {
+    setStrokes((current) => {
+      if (current.length === 0) {
+        return current;
+      }
+      setCircuitDirty(true);
+      return current.slice(0, -1).map((stroke, index) => ({
+        ...stroke,
+        index,
+      }));
+    });
+  }
+
+  function clearCircuit() {
+    setConfirmClearCircuit(true);
+  }
+
+  function confirmClearCircuitAction() {
+    setStrokes([]);
+    setDraftPoints([]);
+    draftRef.current = [];
+    setCircuitDirty(true);
+    setConfirmClearCircuit(false);
   }
 
   function isDesktopPointer() {
@@ -554,6 +800,9 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
   }
 
   function handlePlantActivate(plant: (typeof local)[number]) {
+    if (circuitMode) {
+      return;
+    }
     activateMapPlant(plant, {
       editMode,
       movedRef,
@@ -565,180 +814,258 @@ export function PatioMapBoard({ plants, mapSrc }: Props) {
     });
   }
 
-  // Only block page scroll while zoomed or mid-gesture. At 1× allow
-  // vertical scroll over the map again (touch-pan-y).
   const blockPageScroll =
-    pinching || scale > MIN_ZOOM || drag?.kind === "pan";
+    pinching ||
+    scale > MIN_ZOOM ||
+    drag?.kind === "pan" ||
+    drag?.kind === "draw" ||
+    circuitMode;
+
+  const circuitVisible = showCircuit || circuitMode;
 
   return (
     <div className="flex flex-col">
-      <div className="md:mx-auto md:w-full md:max-w-lg md:px-4">
-      <div
-        ref={viewportRef}
-        className={`relative w-full overflow-hidden border-y border-emerald-900/10 bg-white select-none md:rounded-xl md:border ${
-          blockPageScroll ? "touch-none" : "touch-pan-y"
-        }`}
-        style={{ aspectRatio: "610 / 1024" }}
-        onPointerDown={onPointerDownViewport}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onWheel={(event) => {
-          // Trackpad pinch often sets ctrlKey; mouse: Ctrl/Cmd + wheel.
-          if (!(event.ctrlKey || event.metaKey)) {
-            return;
-          }
-          event.preventDefault();
-          const factor = event.deltaY > 0 ? 0.9 : 1.1;
-          applyZoomAt(scale * factor, event.clientX, event.clientY);
-        }}
-      >
-        <div className="pointer-events-none absolute right-2 top-2 z-40 flex flex-col items-end gap-2">
-          <MapControlButton
-            label={editMode ? "Listo" : "Ubicar plantas"}
-            active={editMode}
-            onClick={toggleEditMode}
-          >
-            {editMode ? <CheckIcon /> : <PinIcon />}
-          </MapControlButton>
-          {scale > 1 ? (
-            <MapControlButton
-              label={`Zoom ${scale.toFixed(1)}× · restablecer`}
-              onClick={resetZoom}
-            >
-              <ZoomResetIcon />
-            </MapControlButton>
-          ) : null}
-        </div>
+      <ConfirmDialog
+        open={confirmClearCircuit}
+        title="¿Borrar el circuito?"
+        description="Se van a eliminar todos los tramos dibujados. Las plantas del mapa se quedan; solo se pierde el recorrido."
+        confirmLabel="Borrar todo"
+        cancelLabel="Cancelar"
+        destructive
+        onConfirm={confirmClearCircuitAction}
+        onCancel={() => setConfirmClearCircuit(false)}
+      />
 
-        {editMode ? (
-          <p className="pointer-events-none absolute bottom-2 left-2 right-16 z-40 rounded-lg bg-emerald-950/80 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
-            Tocá una · arrastrá · tamaño
+      {circuitMode ? (
+        <section className="mx-4 mb-3 rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm md:mx-auto md:w-full md:max-w-lg">
+          <h2 className="font-semibold text-emerald-950">
+            Circuito de riego ({strokes.length} tramo
+            {strokes.length === 1 ? "" : "s"})
+          </h2>
+          <p className="mt-1 text-sm text-emerald-900/70">
+            El orden de los tramos ordena las tareas en Hoy. Las plantas se
+            enganchan al punto más cercano del dibujo.
           </p>
-        ) : null}
+          {savingCircuit ? (
+            <p className="mt-2 text-xs font-medium text-emerald-800">
+              Guardando…
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
+      <div className="md:mx-auto md:w-full md:max-w-lg md:px-4">
         <div
-          ref={boardRef}
-          className="absolute inset-0 origin-top-left will-change-transform"
-          style={{
-            transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
+          ref={viewportRef}
+          className={`relative w-full overflow-hidden border-y border-emerald-900/10 bg-white select-none md:rounded-xl md:border ${
+            blockPageScroll ? "touch-none" : "touch-pan-y"
+          }`}
+          style={{ aspectRatio: "610 / 1024" }}
+          onPointerDown={onPointerDownViewport}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onWheel={(event) => {
+            if (!(event.ctrlKey || event.metaKey)) {
+              return;
+            }
+            event.preventDefault();
+            const factor = event.deltaY > 0 ? 0.9 : 1.1;
+            applyZoomAt(scale * factor, event.clientX, event.clientY);
           }}
         >
-          {mapSrc ? (
-            <Image
-              key={mapSrc}
-              src={mapSrc}
-              alt="Plano del patio"
-              fill
-              data-map-bg="1"
-              className="pointer-events-none object-contain"
-              sizes="(max-width: 768px) 100vw, 512px"
-              priority
-              draggable={false}
-            />
-          ) : (
-            <div
-              data-map-bg="1"
-              className="pointer-events-none absolute inset-0 flex items-center justify-center bg-emerald-50/80 px-6 text-center"
+          <div className="pointer-events-none absolute right-2 top-2 z-40 flex flex-col items-end gap-2">
+            <MapControlButton
+              label={editMode ? "Listo" : "Ubicar plantas"}
+              active={editMode}
+              onClick={toggleEditMode}
             >
-              <p className="max-w-xs text-sm font-medium text-emerald-900/70">
-                Sin plano cargado. Usá “Cargar plano” arriba para subir la
-                imagen de tu casa.
-              </p>
-            </div>
-          )}
-
-          {placed.map((plant) => {
-            const size = plant.mapSize ?? DEFAULT_SIZE;
-            const needsCare = plant.careStatus !== "ok";
-            const isSelected = editMode && selectedId === plant.id;
-            const showName = isSelected || (!editMode && namedId === plant.id);
-            const handleScale = 1 / scale;
-            return (
-              <div
-                key={plant.id}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 ${
-                  savingId === plant.id ? "opacity-70" : ""
-                }`}
-                style={{
-                  left: `${plant.mapX}%`,
-                  top: `${plant.mapY}%`,
-                  width: `${size}%`,
-                  zIndex: isSelected || showName ? 20 : 1,
-                }}
+              {editMode ? <CheckIcon /> : <PinIcon />}
+            </MapControlButton>
+            <MapControlButton
+              label={circuitMode ? "Listo circuito" : "Dibujar circuito"}
+              active={circuitMode}
+              onClick={toggleCircuitMode}
+            >
+              {circuitMode ? <CheckIcon /> : <PathIcon />}
+            </MapControlButton>
+            <MapControlButton
+              label={showCircuit ? "Ocultar circuito" : "Mostrar circuito"}
+              active={showCircuit}
+              onClick={() => setShowCircuit((value) => !value)}
+            >
+              <EyeIcon open={showCircuit || circuitMode} />
+            </MapControlButton>
+            {scale > 1 ? (
+              <MapControlButton
+                label={`Zoom ${scale.toFixed(1)}× · restablecer`}
+                onClick={resetZoom}
               >
-                {showName ? (
-                  <div
-                    className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 max-w-[10rem] whitespace-nowrap rounded-lg bg-emerald-950 px-2 py-1 text-center text-xs font-semibold text-white shadow-md"
-                    style={{
-                      transform: `translateX(-50%) scale(${handleScale})`,
-                      transformOrigin: "bottom center",
-                    }}
-                  >
-                    {plant.name}
-                  </div>
-                ) : null}
-                <button
-                  type="button"
-                  title={plant.name}
-                  aria-label={plant.name}
-                  aria-pressed={isSelected}
-                  onPointerDown={(event) => startMove(event, plant)}
-                  onClick={() => handlePlantActivate(plant)}
-                  className={`relative aspect-square w-full overflow-hidden rounded-full border-2 shadow-md ${
-                    isSelected
-                      ? "border-amber-400 ring-2 ring-amber-300"
-                      : "border-white"
-                  } ${editMode ? "touch-none" : ""} ${
-                    !editMode && !needsCare ? "opacity-45 grayscale" : ""
+                <ZoomResetIcon />
+              </MapControlButton>
+            ) : null}
+          </div>
+
+          {circuitMode ? (
+            <div className="pointer-events-none absolute left-2 top-2 z-40 flex flex-row items-center gap-2">
+              <MapControlButton
+                label="Deshacer tramo"
+                disabled={strokes.length === 0 || savingCircuit}
+                onClick={undoLastStroke}
+              >
+                <UndoIcon />
+              </MapControlButton>
+              <MapControlButton
+                label="Borrar todo"
+                disabled={strokes.length === 0 || savingCircuit}
+                onClick={clearCircuit}
+              >
+                <TrashIcon />
+              </MapControlButton>
+            </div>
+          ) : null}
+
+          {editMode ? (
+            <p className="pointer-events-none absolute bottom-2 left-2 right-16 z-40 rounded-lg bg-emerald-950/80 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+              Tocá una · arrastrá · tamaño
+            </p>
+          ) : null}
+
+          <div
+            ref={boardRef}
+            className="absolute inset-0 origin-top-left will-change-transform"
+            style={{
+              transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
+            }}
+          >
+            {mapSrc ? (
+              <Image
+                key={mapSrc}
+                src={mapSrc}
+                alt="Plano del patio"
+                fill
+                data-map-bg="1"
+                className="pointer-events-none object-contain"
+                sizes="(max-width: 768px) 100vw, 512px"
+                priority
+                draggable={false}
+              />
+            ) : (
+              <div
+                data-map-bg="1"
+                className="pointer-events-none absolute inset-0 flex items-center justify-center bg-emerald-50/80 px-6 text-center"
+              >
+                <p className="max-w-xs text-sm font-medium text-emerald-900/70">
+                  Sin plano cargado. Usá “Cargar plano” arriba para subir la
+                  imagen de tu casa.
+                </p>
+              </div>
+            )}
+
+            {circuitVisible ? (
+              <WalkCircuitOverlay
+                strokes={strokes}
+                draftPoints={draftPoints}
+                connections={connections}
+                showConnections={circuitVisible}
+              />
+            ) : null}
+
+            {placed.map((plant) => {
+              const size = plant.mapSize ?? DEFAULT_SIZE;
+              const needsCare = plant.careStatus !== "ok";
+              const isSelected = editMode && selectedId === plant.id;
+              const showName =
+                isSelected ||
+                (!editMode && !circuitMode && namedId === plant.id);
+              const handleScale = 1 / scale;
+              return (
+                <div
+                  key={plant.id}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 ${
+                    savingId === plant.id ? "opacity-70" : ""
                   }`}
+                  style={{
+                    left: `${plant.mapX}%`,
+                    top: `${plant.mapY}%`,
+                    width: `${size}%`,
+                    zIndex: isSelected || showName ? 20 : 1,
+                  }}
                 >
-                  {plant.coverPhotoPath ? (
-                    <Image
-                      src={withBasePath(plant.coverPhotoPath)}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                      draggable={false}
-                    />
-                  ) : (
-                    <span className="flex h-full items-center justify-center bg-emerald-100 text-lg">
-                      🌿
-                    </span>
-                  )}
-                </button>
-                {isSelected ? (
-                  <>
-                    <button
-                      type="button"
-                      aria-label="Cambiar tamaño"
-                      onPointerDown={(event) => startResize(event, plant)}
-                      className="absolute -bottom-1 -right-1 h-5 w-5 touch-none rounded-full border border-emerald-800 bg-amber-300 shadow"
+                  {showName ? (
+                    <div
+                      className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 max-w-[10rem] whitespace-nowrap rounded-lg bg-emerald-950 px-2 py-1 text-center text-xs font-semibold text-white shadow-md"
                       style={{
-                        transform: `scale(${handleScale})`,
-                        transformOrigin: "bottom right",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Sacar del mapa"
-                      onClick={() => removeFromMap(plant.id)}
-                      className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow"
-                      style={{
-                        transform: `scale(${handleScale})`,
-                        transformOrigin: "top left",
+                        transform: `translateX(-50%) scale(${handleScale})`,
+                        transformOrigin: "bottom center",
                       }}
                     >
-                      ×
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            );
-          })}
+                      {plant.name}
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    title={plant.name}
+                    aria-label={plant.name}
+                    aria-pressed={isSelected}
+                    onPointerDown={(event) => startMove(event, plant)}
+                    onClick={() => handlePlantActivate(plant)}
+                    className={`relative aspect-square w-full overflow-hidden rounded-full border-2 shadow-md ${
+                      isSelected
+                        ? "border-amber-400 ring-2 ring-amber-300"
+                        : "border-white"
+                    } ${editMode ? "touch-none" : ""} ${
+                      circuitMode ? "pointer-events-none" : ""
+                    } ${
+                      !editMode && !needsCare ? "opacity-45 grayscale" : ""
+                    }`}
+                  >
+                    {plant.coverPhotoPath ? (
+                      <Image
+                        src={withBasePath(plant.coverPhotoPath)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                        draggable={false}
+                      />
+                    ) : (
+                      <span className="flex h-full items-center justify-center bg-emerald-100 text-lg">
+                        🌿
+                      </span>
+                    )}
+                  </button>
+                  {isSelected ? (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Cambiar tamaño"
+                        onPointerDown={(event) => startResize(event, plant)}
+                        className="absolute -bottom-1 -right-1 h-5 w-5 touch-none rounded-full border border-emerald-800 bg-amber-300 shadow"
+                        style={{
+                          transform: `scale(${handleScale})`,
+                          transformOrigin: "bottom right",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Sacar del mapa"
+                        onClick={() => removeFromMap(plant.id)}
+                        className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow"
+                        style={{
+                          transform: `scale(${handleScale})`,
+                          transformOrigin: "top left",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
       </div>
 
       {editMode ? (

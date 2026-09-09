@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { resolveGardenId } from "@/lib/garden-access";
 import { mergeNotesIntoObservations } from "@/lib/plant-text";
 import { getUploadDir } from "@/lib/uploads";
+import { parsePointsJson } from "@/lib/walk-circuit";
 
 export const BACKUP_VERSION = 1;
 
@@ -64,6 +65,7 @@ type BackupPlant = {
   mapX?: number | null;
   mapY?: number | null;
   mapSize?: number | null;
+  walkOrder?: number | null;
   createdAt?: string;
   updatedAt?: string;
   photos?: BackupPhoto[];
@@ -99,6 +101,9 @@ export type PlantasBackup = {
     seasonOverride?: string | null;
     mapImagePath?: string | null;
     updatedAt?: string;
+  } | null;
+  walkCircuit?: {
+    strokes: Array<{ index: number; points: Array<{ x: number; y: number }> }>;
   } | null;
   plants?: BackupPlant[];
   birds?: BackupBird[];
@@ -238,7 +243,8 @@ async function writeBackupFiles(files: PlantasBackup["files"]) {
 
 export async function buildBackupExport() {
   const gid = await resolveGardenId();
-  const [plants, birds, notes, patioEvents, settings] = await Promise.all([
+  const [plants, birds, notes, patioEvents, settings, circuit] =
+    await Promise.all([
     prisma.plant.findMany({
       where: { gardenId: gid },
       orderBy: { name: "asc" },
@@ -266,6 +272,10 @@ export async function buildBackupExport() {
       include: { photos: true },
     }),
     prisma.gardenSettings.findUnique({ where: { gardenId: gid } }),
+    prisma.walkCircuit.findUnique({
+      where: { gardenId: gid },
+      include: { strokes: { orderBy: { index: "asc" } } },
+    }),
   ]);
 
   const photoPaths = new Set<string>();
@@ -314,6 +324,14 @@ export async function buildBackupExport() {
           updatedAt: settings.updatedAt.toISOString(),
         }
       : null,
+    walkCircuit: circuit
+      ? {
+          strokes: circuit.strokes.map((stroke) => ({
+            index: stroke.index,
+            points: parsePointsJson(stroke.pointsJson),
+          })),
+        }
+      : null,
     plants: plants.map((plant) => ({
       id: plant.id,
       name: plant.name,
@@ -353,6 +371,7 @@ export async function buildBackupExport() {
       mapX: plant.mapX,
       mapY: plant.mapY,
       mapSize: plant.mapSize,
+      walkOrder: plant.walkOrder,
       createdAt: plant.createdAt.toISOString(),
       updatedAt: plant.updatedAt.toISOString(),
       photos: plant.photos.map((photo) => ({
@@ -655,9 +674,27 @@ export async function restoreBackup(
           },
         });
       }
+
+      await tx.walkCircuit.deleteMany({ where: { gardenId: gid } });
+      const circuitStrokes = backup.walkCircuit?.strokes ?? [];
+      if (circuitStrokes.length > 0) {
+        const createdCircuit = await tx.walkCircuit.create({
+          data: { gardenId: gid },
+        });
+        await tx.walkStroke.createMany({
+          data: circuitStrokes.map((stroke, index) => ({
+            circuitId: createdCircuit.id,
+            index: stroke.index ?? index,
+            pointsJson: JSON.stringify(stroke.points ?? []),
+          })),
+        });
+      }
     },
     { timeout: 120_000 },
   );
+
+  const { recalculateWalkOrders } = await import("@/lib/walk-circuit");
+  await recalculateWalkOrders(gid);
 
   return {
     plants: plants.filter((plant) => plant.name?.trim()).length,

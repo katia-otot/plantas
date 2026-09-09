@@ -609,10 +609,10 @@ export async function updatePlantMapPin(
 
   const clearing = pin.mapX == null || pin.mapY == null;
 
-  return prisma.plant.update({
+  const plant = await prisma.plant.update({
     where: { id },
     data: clearing
-      ? { mapX: null, mapY: null, mapSize: null }
+      ? { mapX: null, mapY: null, mapSize: null, walkOrder: null }
       : {
           mapX: clamp(pin.mapX!, 0, 100),
           mapY: clamp(pin.mapY!, 0, 100),
@@ -620,6 +620,10 @@ export async function updatePlantMapPin(
             pin.mapSize == null ? undefined : clamp(pin.mapSize, 4, 28),
         },
   });
+
+  const { recalculateWalkOrders } = await import("@/lib/walk-circuit");
+  await recalculateWalkOrders(plant.gardenId);
+  return plant;
 }
 
 export async function updatePlantCoverPhoto(

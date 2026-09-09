@@ -22,6 +22,7 @@ import type { RainIntensity } from "@/lib/rain-credit";
 import { toPlantCareSchedule } from "@/lib/care-schedule";
 import { resolveGardenId } from "@/lib/garden-access";
 import { withBasePath } from "@/lib/base-path";
+import { compareTodayTasks } from "@/lib/today-task-sort";
 import { TREATMENT_TYPE_LABELS } from "@/lib/treatments";
 import { TASK_LABELS, type Season } from "@/lib/types";
 import { RainAllButton } from "@/components/RainAllButton";
@@ -57,18 +58,12 @@ async function getTodayTasks(
         coverPhotoPath: plant.coverPhotoPath,
         careTreatments: getPlantCareTreatments(plant),
         schedule: toPlantCareSchedule(plant),
+        walkOrder: plant.walkOrder,
       });
     }
   }
 
-  tasks.sort((a, b) => {
-    const priority = { overdue: 0, due: 1, ok: 2 } as const;
-    const diff = priority[a.status] - priority[b.status];
-    if (diff !== 0) {
-      return diff;
-    }
-    return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
-  });
+  tasks.sort(compareTodayTasks);
 
   return tasks;
 }
