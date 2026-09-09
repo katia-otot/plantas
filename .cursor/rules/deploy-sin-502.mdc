@@ -1,0 +1,17 @@
+---
+description: Evitar 502 en deploy Anthos — no parar el servicio hasta el swap
+globs: scripts/deploy-vps.py
+alwaysApply: false
+---
+
+# Deploy sin 502
+
+Al editar o usar `scripts/deploy-vps.py`:
+
+1. **No** `systemctl stop plantas` al inicio del deploy.
+2. Build en `/opt/plantas.new` con producción **sigue UP**.
+3. Parar solo un momento antes del swap; si falla después del stop, **reactivar** `plantas`.
+4. Antes de deploy remoto: `npm run build` en local.
+5. Prisma durante el build debe usar `DATABASE_URL=file:/opt/plantas.new/data/app.db` (copia), no la DB viva.
+
+Ver skill `.cursor/skills/anthos-vps-deploy/SKILL.md` y `.cursor/problemas-resueltos.md` (entrada 502).

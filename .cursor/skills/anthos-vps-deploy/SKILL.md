@@ -28,10 +28,13 @@ El script viejo hacía esto mal:
 - El tarball **nunca** incluye la carpeta `data/`
 - Antes de copiar: `rm -rf plantas.new/data`
 - Verificar `app.db` > 1 KB **antes** del swap
-- Build en `plantas.new` **antes** del swap (si falla, producción intacta)
-- `systemctl stop plantas` antes de tocar archivos
+- Build en `plantas.new` **antes** del swap (si falla, producción intacta y **sigue UP**)
+- **No** `systemctl stop` al inicio — solo parar un momento antes del swap; si falla después del stop, el script **reactiva** `plantas`
+- Durante el build, `DATABASE_URL=file:/opt/plantas.new/data/app.db` (copia), nunca la DB viva
+- Antes del swap: re-copiar `data/` fresca desde producción + `prisma db push` en la copia
 - `prisma db push` **antes** de `migrate-multi-garden.ts`
 - **Prohibido** `|| mkdir` como fallback silencioso en pasos de data
+- Antes de deploy: `npm run build` en local (evita 502 por fallos de TypeScript en el VPS)
 
 ## Contexto del proyecto
 
@@ -47,12 +50,13 @@ El tarball de deploy **no incluye** fotos ni `app.db` locales (la PC no tiene la
 
 ```
 Deploy seguro:
+- [ ] `npm run build` local OK (TypeScript) antes de subir
 - [ ] Backup remoto de app.db (fecha en el nombre)
 - [ ] data/ del VPS copiada intacta (app.db + uploads/)
 - [ ] Conteo de archivos en data/uploads/ > 0 si hay portadas en DB
 - [ ] Fotos referenciadas existen en disco
 - [ ] Secretos presentes (.env, firebase-adminsdk.json si aplica)
-- [ ] Servicio plantas active + HTTP 200 en /plantas/login
+- [ ] Servicio plantas active + HTTP 200 en /plantas/login (si falló el deploy, confirmar que NO quedó en 502)
 - [ ] Log del servicio muestra `[notification-scheduler] próximo aviso:` tras restart
 ```
 
@@ -73,12 +77,13 @@ Requiere `pip install paramiko`.
 
 Al deployear (el script `deploy-vps.py` ya hace esto):
 
-1. `systemctl stop plantas`
-2. Backup: `cp -a /opt/plantas/data/app.db .../app.db.bak-FECHA`
-3. Extraer código en `/opt/plantas.new` **sin** `data/`
-4. `rm -rf /opt/plantas.new/data && cp -a /opt/plantas/data /opt/plantas.new/data`
-5. Build en `.new`; solo si OK → swap `mv plantas plantas.old && mv plantas.new plantas`
-6. Si algo falla, producción queda en `/opt/plantas` o se restaura desde `/opt/plantas.old/data/`
+1. Backup: `cp -a /opt/plantas/data/app.db .../app.db.bak-FECHA` (**servicio sigue activo**)
+2. Extraer código en `/opt/plantas.new` **sin** `data/`
+3. `rm -rf /opt/plantas.new/data && cp -a /opt/plantas/data /opt/plantas.new/data`
+4. Build en `.new` con `DATABASE_URL` apuntando a la **copia**; producción sigue UP
+5. Si el build falla → no swap, app sigue respondiendo (no 502)
+6. Solo entonces: `systemctl stop` → re-copiar `data/` fresca → `prisma db push` en `.new` → swap → `systemctl start`
+7. Si falla entre stop y start → el script intenta `systemctl start plantas`
 
 ## Verificar fotos
 
