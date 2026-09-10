@@ -30,10 +30,10 @@ const MAX_SIZE = 22;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const DRAW_SAMPLE_MIN = 0.8;
-/** Hold before a stroke starts so one-finger page scroll still works. */
-const DRAW_HOLD_MS = 280;
-/** Cancel pending draw if the finger moves this far before the hold ends. */
-const DRAW_HOLD_MOVE_CANCEL_PX = 10;
+/** Hold still this long, then slide = page scroll (no draw). */
+const SCROLL_HOLD_MS = 280;
+/** Move this far before the hold ends → start drawing. */
+const DRAW_START_MOVE_PX = 10;
 
 type Props = {
   plants: MapPlant[];
@@ -79,6 +79,7 @@ type PendingCircuitGesture = {
   clientX: number;
   clientY: number;
   target: EventTarget | null;
+  intent: "undecided" | "scroll";
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -597,7 +598,7 @@ export function PatioMapBoard({
     }
 
     if (circuitMode && pointersRef.current.size === 1) {
-      // Mouse: dibujar al instante. Touch: hold corto; mover antes = scroll.
+      // Mouse: dibujar al instante.
       if (event.pointerType === "mouse") {
         event.preventDefault();
         beginDrawStroke(
@@ -608,25 +609,21 @@ export function PatioMapBoard({
         );
         return;
       }
+      // Touch: deslizar ya = dibujar; mantener ~½ s = después scrollear.
       clearPendingGesture();
       pendingDrawRef.current = {
         pointerId: event.pointerId,
         clientX: event.clientX,
         clientY: event.clientY,
         target: event.currentTarget,
+        intent: "undecided",
       };
       drawHoldTimerRef.current = setTimeout(() => {
         const pending = pendingDrawRef.current;
-        if (!pending || !circuitMode) {
-          return;
+        if (pending?.intent === "undecided") {
+          pending.intent = "scroll";
         }
-        beginDrawStroke(
-          pending.pointerId,
-          pending.clientX,
-          pending.clientY,
-          pending.target,
-        );
-      }, DRAW_HOLD_MS);
+      }, SCROLL_HOLD_MS);
       return;
     }
 
@@ -660,13 +657,23 @@ export function PatioMapBoard({
 
     const pending = pendingDrawRef.current;
     if (pending && pending.pointerId === event.pointerId) {
+      if (pending.intent === "scroll") {
+        // Hold cumplido: la página scrollea (sin preventDefault).
+        return;
+      }
       const moved = Math.hypot(
         event.clientX - pending.clientX,
         event.clientY - pending.clientY,
       );
-      if (moved >= DRAW_HOLD_MOVE_CANCEL_PX) {
-        // Movió antes del hold → scroll de página, no trazo.
-        clearPendingGesture();
+      if (moved >= DRAW_START_MOVE_PX) {
+        beginDrawStroke(
+          pending.pointerId,
+          pending.clientX,
+          pending.clientY,
+          pending.target,
+        );
+        event.preventDefault();
+        appendDraftPoint(clientToPercent(event.clientX, event.clientY));
       }
       return;
     }
@@ -949,8 +956,8 @@ export function PatioMapBoard({
             {strokes.length === 1 ? "" : "s"})
           </h2>
           <p className="mt-1 text-sm text-emerald-900/70">
-            Mantené el dedo medio segundo y después deslizá para dibujar; con un
-            dedo sin mantener podés scrollear; con dos dedos, zoom.
+            Mantené el dedo medio segundo y después deslizá para scrollear; con
+            un dedo sin mantener podés dibujar; con dos dedos, zoom.
           </p>
           {savingCircuit ? (
             <p className="mt-2 text-xs font-medium text-emerald-800">

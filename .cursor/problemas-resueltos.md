@@ -3,8 +3,8 @@
 **Síntoma:** En modo circuito, al scrollear el mapa se dibujaban líneas; el scroll con 2 dedos era incómodo.
 **Contexto:** Mapa móvil (`PatioMapBoard`), modo dibujar circuito.
 **Causa:** Un dedo capturaba el pointer y dibujaba al instante, bloqueando el scroll.
-**Solución:** Touch: mantener ~280 ms y después deslizar = dibujar; mover antes del hold = scroll. Mouse dibuja al instante. Dos dedos = pinch. El texto de ayuda debe coincidir con esos gestos.
-**Prevención:** No capturar pointer en el primer toque; no invertir gestos si solo falla el copy.
+**Solución:** Touch: deslizar ya = dibujar; mantener ~280 ms y después deslizar = scroll. Mouse dibuja al instante. Dos dedos = pinch. Texto de ayuda alineado a eso.
+**Prevención:** No invertir gestos respecto de lo pedido; copy y comportamiento deben coincidir.
 
 ---
 
