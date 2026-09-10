@@ -519,6 +519,24 @@ export function PatioMapBoard({
     setDraftPoints(next);
   }
 
+  function cancelDrawGesture(target?: EventTarget | null) {
+    draftRef.current = [];
+    setDraftPoints([]);
+    setDrag((current) => (current?.kind === "draw" ? null : current));
+    if (target && "releasePointerCapture" in target) {
+      const element = target as HTMLElement;
+      for (const pointerId of pointersRef.current.keys()) {
+        try {
+          if (element.hasPointerCapture?.(pointerId)) {
+            element.releasePointerCapture(pointerId);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
   function onPointerDownViewport(event: React.PointerEvent) {
     pointersRef.current.set(event.pointerId, {
       x: event.clientX,
@@ -526,8 +544,13 @@ export function PatioMapBoard({
     });
 
     if (pointersRef.current.size === 2) {
-      event.preventDefault();
-      beginPinch();
+      // Segundo dedo: cancelar trazo. En 1× dejar scrollear la página;
+      // con zoom, pinch como siempre.
+      cancelDrawGesture(event.currentTarget);
+      if (scale > MIN_ZOOM) {
+        event.preventDefault();
+        beginPinch();
+      }
       return;
     }
 
@@ -565,8 +588,11 @@ export function PatioMapBoard({
     }
 
     if (pointersRef.current.size >= 2 || pinchRef.current) {
-      event.preventDefault();
-      updatePinch();
+      // Con dos dedos en zoom 1× no bloqueamos: el navegador puede scrollear.
+      if (pinchRef.current || scale > MIN_ZOOM) {
+        event.preventDefault();
+        updatePinch();
+      }
       return;
     }
 
@@ -818,8 +844,7 @@ export function PatioMapBoard({
     pinching ||
     scale > MIN_ZOOM ||
     drag?.kind === "pan" ||
-    drag?.kind === "draw" ||
-    circuitMode;
+    drag?.kind === "draw";
 
   const circuitVisible = showCircuit || circuitMode;
 
