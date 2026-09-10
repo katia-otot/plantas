@@ -1,10 +1,10 @@
 ## 2026-09-10 — Circuito: scroll 1 dedo vs dibujar sin querer
 
-**Síntoma:** En modo circuito, al scrollear el mapa se dibujaban líneas; el scroll con 2 dedos era incómodo y chocaba con el pinch-zoom.
+**Síntoma:** En modo circuito, al scrollear el mapa se dibujaban líneas; el scroll con 2 dedos era incómodo.
 **Contexto:** Mapa móvil (`PatioMapBoard`), modo dibujar circuito.
-**Causa:** Un dedo capturaba el pointer y dibujaba al instante (`preventDefault`), bloqueando el scroll de página.
-**Solución:** En touch, hold ~280 ms para empezar a dibujar; si el dedo se mueve antes, se cancela el pending y la página scrollea. Mouse dibuja al instante. Dos dedos = solo pinch.
-**Prevención:** No capturar pointer ni `preventDefault` en el primer toque del modo circuito en touch.
+**Causa:** Un dedo capturaba el pointer y dibujaba al instante, bloqueando el scroll.
+**Solución:** Touch: deslizar ya = dibujar; mantener ~280 ms quieto y después deslizar = scroll de página. Mouse dibuja al instante. Dos dedos = pinch.
+**Prevención:** No capturar pointer en el primer toque; decidir draw vs scroll según movimiento temprano vs hold.
 
 ---
 

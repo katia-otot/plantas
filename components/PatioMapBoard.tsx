@@ -30,10 +30,10 @@ const MAX_SIZE = 22;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const DRAW_SAMPLE_MIN = 0.8;
-/** Hold before a stroke starts so one-finger page scroll still works. */
-const DRAW_HOLD_MS = 280;
-/** Cancel pending draw if the finger moves this far before the hold ends. */
-const DRAW_HOLD_MOVE_CANCEL_PX = 10;
+/** Hold still this long before one-finger page scroll is allowed. */
+const SCROLL_HOLD_MS = 280;
+/** Move this far before the hold ends → start drawing. */
+const DRAW_START_MOVE_PX = 10;
 
 type Props = {
   plants: MapPlant[];
@@ -74,11 +74,12 @@ type PinchState = {
   originY: number;
 };
 
-type PendingDraw = {
+type PendingCircuitGesture = {
   pointerId: number;
   clientX: number;
   clientY: number;
   target: EventTarget | null;
+  intent: "undecided" | "scroll";
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -284,7 +285,7 @@ export function PatioMapBoard({
   const boardRef = useRef<HTMLDivElement>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<PinchState | null>(null);
-  const pendingDrawRef = useRef<PendingDraw | null>(null);
+  const pendingDrawRef = useRef<PendingCircuitGesture | null>(null);
   const drawHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [circuitMode, setCircuitMode] = useState(false);
@@ -526,7 +527,7 @@ export function PatioMapBoard({
     commitTransform(nextScale, nextPanX, nextPanY);
   }
 
-  function clearPendingDraw() {
+  function clearPendingGesture() {
     if (drawHoldTimerRef.current != null) {
       clearTimeout(drawHoldTimerRef.current);
       drawHoldTimerRef.current = null;
@@ -534,16 +535,17 @@ export function PatioMapBoard({
     pendingDrawRef.current = null;
   }
 
-  function startDrawFromPending() {
-    const pending = pendingDrawRef.current;
-    if (!pending || !circuitMode) {
-      return;
-    }
-    clearPendingDraw();
-    const target = pending.target as HTMLElement | null;
-    target?.setPointerCapture?.(pending.pointerId);
+  function beginDrawStroke(
+    pointerId: number,
+    clientX: number,
+    clientY: number,
+    target: EventTarget | null,
+  ) {
+    clearPendingGesture();
+    const element = target as HTMLElement | null;
+    element?.setPointerCapture?.(pointerId);
     movedRef.current = false;
-    const point = clientToPercent(pending.clientX, pending.clientY);
+    const point = clientToPercent(clientX, clientY);
     draftRef.current = [point];
     setDraftPoints([point]);
     setDrag({ kind: "draw" });
@@ -564,7 +566,7 @@ export function PatioMapBoard({
   }
 
   function cancelDrawGesture(target?: EventTarget | null) {
-    clearPendingDraw();
+    clearPendingGesture();
     draftRef.current = [];
     setDraftPoints([]);
     setDrag((current) => (current?.kind === "draw" ? null : current));
@@ -596,29 +598,32 @@ export function PatioMapBoard({
     }
 
     if (circuitMode && pointersRef.current.size === 1) {
-      // Mouse: dibujar al instante. Touch: hold corto para poder scrollear con 1 dedo.
+      // Mouse: dibujar al instante.
       if (event.pointerType === "mouse") {
         event.preventDefault();
-        movedRef.current = false;
-        (event.currentTarget as HTMLElement).setPointerCapture?.(
+        beginDrawStroke(
           event.pointerId,
+          event.clientX,
+          event.clientY,
+          event.currentTarget,
         );
-        const point = clientToPercent(event.clientX, event.clientY);
-        draftRef.current = [point];
-        setDraftPoints([point]);
-        setDrag({ kind: "draw" });
         return;
       }
-      clearPendingDraw();
+      // Touch: deslizar ya = dibujar; mantener ~½ s sin mover = después scrollear.
+      clearPendingGesture();
       pendingDrawRef.current = {
         pointerId: event.pointerId,
         clientX: event.clientX,
         clientY: event.clientY,
         target: event.currentTarget,
+        intent: "undecided",
       };
       drawHoldTimerRef.current = setTimeout(() => {
-        startDrawFromPending();
-      }, DRAW_HOLD_MS);
+        const pending = pendingDrawRef.current;
+        if (pending?.intent === "undecided") {
+          pending.intent = "scroll";
+        }
+      }, SCROLL_HOLD_MS);
       return;
     }
 
@@ -652,13 +657,23 @@ export function PatioMapBoard({
 
     const pending = pendingDrawRef.current;
     if (pending && pending.pointerId === event.pointerId) {
+      if (pending.intent === "scroll") {
+        // Hold cumplido: la página scrollea (sin preventDefault).
+        return;
+      }
       const moved = Math.hypot(
         event.clientX - pending.clientX,
         event.clientY - pending.clientY,
       );
-      if (moved >= DRAW_HOLD_MOVE_CANCEL_PX) {
-        // El dedo se movió antes del hold → scroll de página, no trazo.
-        clearPendingDraw();
+      if (moved >= DRAW_START_MOVE_PX) {
+        beginDrawStroke(
+          pending.pointerId,
+          pending.clientX,
+          pending.clientY,
+          pending.target,
+        );
+        event.preventDefault();
+        appendDraftPoint(clientToPercent(event.clientX, event.clientY));
       }
       return;
     }
@@ -715,7 +730,7 @@ export function PatioMapBoard({
       pendingDrawRef.current?.pointerId === event.pointerId ||
       pointersRef.current.size === 0
     ) {
-      clearPendingDraw();
+      clearPendingGesture();
     }
     if (pointersRef.current.size < 2) {
       endPinch();
@@ -941,9 +956,8 @@ export function PatioMapBoard({
             {strokes.length === 1 ? "" : "s"})
           </h2>
           <p className="mt-1 text-sm text-emerald-900/70">
-            Mantené el dedo ~medio segundo y después deslizá para dibujar. Con
-            un dedo sin mantener podés scrollear la página; con dos dedos,
-            zoom. El orden de los tramos ordena Hoy.
+            Mantené el dedo medio segundo y después deslizá para scrollear; con
+            un dedo sin mantener podés dibujar; con dos dedos, zoom.
           </p>
           {savingCircuit ? (
             <p className="mt-2 text-xs font-medium text-emerald-800">
