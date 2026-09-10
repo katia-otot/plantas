@@ -1,3 +1,13 @@
+## 2026-09-10 — Circuito: scroll 1 dedo vs dibujar sin querer
+
+**Síntoma:** En modo circuito, al scrollear el mapa se dibujaban líneas; el scroll con 2 dedos era incómodo y chocaba con el pinch-zoom.
+**Contexto:** Mapa móvil (`PatioMapBoard`), modo dibujar circuito.
+**Causa:** Un dedo capturaba el pointer y dibujaba al instante (`preventDefault`), bloqueando el scroll de página.
+**Solución:** En touch, hold ~280 ms para empezar a dibujar; si el dedo se mueve antes, se cancela el pending y la página scrollea. Mouse dibuja al instante. Dos dedos = solo pinch.
+**Prevención:** No capturar pointer ni `preventDefault` en el primer toque del modo circuito en touch.
+
+---
+
 ## 2026-09-09 — Link a /lluvias/info da 404 en VPS (`/plantas/plantas/...`)
 
 **Síntoma:** En producción el ícono “!” de lluvias iba a `…/plantas/plantas/lluvias/info` (404). En local (sin basePath) andaba.
@@ -5,6 +15,16 @@
 **Causa:** `href={withBasePath("/lluvias/info")}` — Next ya prefija el basePath en `Link`, y `withBasePath` lo duplicaba.
 **Solución:** Usar `href="/lluvias/info"` en `Link` (`RainAllButton`, `app/lluvias/page.tsx`). Seguir usando `withBasePath` solo en `fetch`/`img`/`<a>` crudos.
 **Prevención:** No envolver rutas de `next/link` (ni `router.push` de app) con `withBasePath`.
+
+---
+
+## 2026-09-09 — Deploy: build falla y queda 502 Bad Gateway
+
+**Síntoma:** Falló el build en el VPS y la app quedó en **502 Bad Gateway** un rato.
+**Contexto:** `scripts/deploy-vps.py` hacía `systemctl stop plantas` al **inicio**, antes del build en `plantas.new`.
+**Causa:** Si TypeScript/build fallaba, el swap no ocurría pero el servicio ya estaba parado → nginx 502.
+**Solución:** El script ahora deja el servicio **activo durante el build**; solo para un momento antes del swap. Si falla con el servicio parado, intenta `systemctl start plantas`. Prisma en el build usa `DATABASE_URL` de la copia en `.new`. Antes de deploy: `npm run build` local.
+**Prevención:** Skill `anthos-vps-deploy` actualizado; nunca parar producción al inicio del deploy.
 
 ---
 

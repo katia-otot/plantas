@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { activateMapPlant } from "@/lib/map-plant-activate";
 import { withBasePath } from "@/lib/base-path";
 import {
@@ -30,6 +30,10 @@ const MAX_SIZE = 22;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const DRAW_SAMPLE_MIN = 0.8;
+/** Hold before a stroke starts so one-finger page scroll still works. */
+const DRAW_HOLD_MS = 280;
+/** Cancel pending draw if the finger moves this far before the hold ends. */
+const DRAW_HOLD_MOVE_CANCEL_PX = 10;
 
 type Props = {
   plants: MapPlant[];
@@ -68,6 +72,13 @@ type PinchState = {
   startPanY: number;
   originX: number;
   originY: number;
+};
+
+type PendingDraw = {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  target: EventTarget | null;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -273,6 +284,8 @@ export function PatioMapBoard({
   const boardRef = useRef<HTMLDivElement>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<PinchState | null>(null);
+  const pendingDrawRef = useRef<PendingDraw | null>(null);
+  const drawHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [circuitMode, setCircuitMode] = useState(false);
   const [showCircuit, setShowCircuit] = useState(false);
@@ -301,6 +314,14 @@ export function PatioMapBoard({
   const panXRef = useRef(0);
   const panYRef = useRef(0);
   const draftRef = useRef<WalkPoint[]>([]);
+
+  useEffect(() => {
+    return () => {
+      if (drawHoldTimerRef.current != null) {
+        clearTimeout(drawHoldTimerRef.current);
+      }
+    };
+  }, []);
 
   const placed = local.filter(
     (plant) => plant.mapX != null && plant.mapY != null,
@@ -505,6 +526,29 @@ export function PatioMapBoard({
     commitTransform(nextScale, nextPanX, nextPanY);
   }
 
+  function clearPendingDraw() {
+    if (drawHoldTimerRef.current != null) {
+      clearTimeout(drawHoldTimerRef.current);
+      drawHoldTimerRef.current = null;
+    }
+    pendingDrawRef.current = null;
+  }
+
+  function startDrawFromPending() {
+    const pending = pendingDrawRef.current;
+    if (!pending || !circuitMode) {
+      return;
+    }
+    clearPendingDraw();
+    const target = pending.target as HTMLElement | null;
+    target?.setPointerCapture?.(pending.pointerId);
+    movedRef.current = false;
+    const point = clientToPercent(pending.clientX, pending.clientY);
+    draftRef.current = [point];
+    setDraftPoints([point]);
+    setDrag({ kind: "draw" });
+  }
+
   function appendDraftPoint(point: WalkPoint) {
     const current = draftRef.current;
     const last = current[current.length - 1];
@@ -520,6 +564,7 @@ export function PatioMapBoard({
   }
 
   function cancelDrawGesture(target?: EventTarget | null) {
+    clearPendingDraw();
     draftRef.current = [];
     setDraftPoints([]);
     setDrag((current) => (current?.kind === "draw" ? null : current));
@@ -544,24 +589,36 @@ export function PatioMapBoard({
     });
 
     if (pointersRef.current.size === 2) {
-      // Segundo dedo: cancelar trazo. En 1× dejar scrollear la página;
-      // con zoom, pinch como siempre.
       cancelDrawGesture(event.currentTarget);
-      if (scale > MIN_ZOOM) {
-        event.preventDefault();
-        beginPinch();
-      }
+      event.preventDefault();
+      beginPinch();
       return;
     }
 
     if (circuitMode && pointersRef.current.size === 1) {
-      event.preventDefault();
-      movedRef.current = false;
-      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-      const point = clientToPercent(event.clientX, event.clientY);
-      draftRef.current = [point];
-      setDraftPoints([point]);
-      setDrag({ kind: "draw" });
+      // Mouse: dibujar al instante. Touch: hold corto para poder scrollear con 1 dedo.
+      if (event.pointerType === "mouse") {
+        event.preventDefault();
+        movedRef.current = false;
+        (event.currentTarget as HTMLElement).setPointerCapture?.(
+          event.pointerId,
+        );
+        const point = clientToPercent(event.clientX, event.clientY);
+        draftRef.current = [point];
+        setDraftPoints([point]);
+        setDrag({ kind: "draw" });
+        return;
+      }
+      clearPendingDraw();
+      pendingDrawRef.current = {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        target: event.currentTarget,
+      };
+      drawHoldTimerRef.current = setTimeout(() => {
+        startDrawFromPending();
+      }, DRAW_HOLD_MS);
       return;
     }
 
@@ -588,10 +645,20 @@ export function PatioMapBoard({
     }
 
     if (pointersRef.current.size >= 2 || pinchRef.current) {
-      // Con dos dedos en zoom 1× no bloqueamos: el navegador puede scrollear.
-      if (pinchRef.current || scale > MIN_ZOOM) {
-        event.preventDefault();
-        updatePinch();
+      event.preventDefault();
+      updatePinch();
+      return;
+    }
+
+    const pending = pendingDrawRef.current;
+    if (pending && pending.pointerId === event.pointerId) {
+      const moved = Math.hypot(
+        event.clientX - pending.clientX,
+        event.clientY - pending.clientY,
+      );
+      if (moved >= DRAW_HOLD_MOVE_CANCEL_PX) {
+        // El dedo se movió antes del hold → scroll de página, no trazo.
+        clearPendingDraw();
       }
       return;
     }
@@ -644,6 +711,12 @@ export function PatioMapBoard({
 
   function onPointerUp(event: React.PointerEvent) {
     pointersRef.current.delete(event.pointerId);
+    if (
+      pendingDrawRef.current?.pointerId === event.pointerId ||
+      pointersRef.current.size === 0
+    ) {
+      clearPendingDraw();
+    }
     if (pointersRef.current.size < 2) {
       endPinch();
     }
@@ -868,8 +941,9 @@ export function PatioMapBoard({
             {strokes.length === 1 ? "" : "s"})
           </h2>
           <p className="mt-1 text-sm text-emerald-900/70">
-            El orden de los tramos ordena las tareas en Hoy. Las plantas se
-            enganchan al punto más cercano del dibujo.
+            Mantené el dedo ~medio segundo y después deslizá para dibujar. Con
+            un dedo sin mantener podés scrollear la página; con dos dedos,
+            zoom. El orden de los tramos ordena Hoy.
           </p>
           {savingCircuit ? (
             <p className="mt-2 text-xs font-medium text-emerald-800">
