@@ -94,6 +94,34 @@ describe("shouldAskAboutRain", () => {
     assert.equal(decision.shouldAsk, false);
   });
 
+  it("no pregunta por llovizna mínima en horas pasadas (0,1–0,2 mm)", () => {
+    const decision = shouldAskAboutRain(
+      baseWeather({
+        targetDate: "2026-09-15",
+        hourly: [
+          {
+            time: "2026-09-15T10:00",
+            rain: 0,
+            showers: 0.1,
+            precipitationProbability: 15,
+            weatherCode: 51,
+          },
+          {
+            time: "2026-09-15T12:00",
+            rain: 0,
+            showers: 0.2,
+            precipitationProbability: 8,
+            weatherCode: 51,
+          },
+        ],
+      }),
+      "2026-09-15",
+      "2026-09-15T13:45",
+    );
+    assert.equal(decision.shouldAsk, false);
+    assert.equal(decision.reason, "no_signal");
+  });
+
   it("sin señal no pregunta", () => {
     const decision = shouldAskAboutRain(
       baseWeather({

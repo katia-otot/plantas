@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-09-15 — Aviso de lluvia por llovizna Open-Meteo (0,1 mm)
+
+**Síntoma:** Push “¿llovió?” un día despejado en el patio; Open-Meteo tenía showers 0,1–0,2 mm y prob. 8–15%.
+**Contexto:** Pregunta lluvia 30 min antes del aviso de riego; Necochea.
+**Causa:** `RAIN_SIGNAL_MM = 0.1` y horas pasadas no exigen probabilidad → cualquier décima de mm disparaba `past_hour`.
+**Solución:** Subir umbral a **0,5 mm** (rain+showers) para preguntar.
+**Prevención:** No bajar el umbral sin revisar falsos positivos en costa; documentar en tests el caso llovizna 0,1 mm.
+
+---
+
 ## 2026-09-09 — Link a /lluvias/info da 404 en VPS (`/plantas/plantas/...`)
 
 **Síntoma:** En producción el ícono “!” de lluvias iba a `…/plantas/plantas/lluvias/info` (404). En local (sin basePath) andaba.

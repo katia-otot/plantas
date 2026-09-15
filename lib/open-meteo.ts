@@ -3,7 +3,8 @@
  * Never converts mm into watering credits.
  */
 
-export const RAIN_SIGNAL_MM = 0.1;
+/** Mínimo rain+showers (mm) para considerar lluvia real; evita llovizna ~0,1 mm. */
+export const RAIN_SIGNAL_MM = 0.5;
 export const FORECAST_PROBABILITY_THRESHOLD = 60;
 
 export type OpenMeteoForecast = {
