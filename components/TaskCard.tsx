@@ -90,13 +90,13 @@ export function TaskCard({ task }: { task: PlantTask }) {
       aria-expanded={showSchedule}
       aria-label="Programar"
       onClick={() => setShowSchedule((open) => !open)}
-      className={`inline-flex items-center justify-center rounded-xl border px-2.5 py-2 hover:bg-emerald-50 ${
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border hover:bg-emerald-50 ${
         showSchedule
           ? "border-emerald-400 bg-emerald-50"
           : "border-emerald-900/15 bg-white"
       }`}
     >
-      <ActionIcon name="agenda" size={32} alt="" />
+      <ActionIcon name="agenda" size={24} alt="" />
     </button>
   );
 
@@ -141,19 +141,19 @@ export function TaskCard({ task }: { task: PlantTask }) {
         </div>
 
         {isWater ? (
-          <div className="relative mt-3 flex flex-wrap items-center gap-2">
+          <div className="relative mt-3 flex flex-nowrap items-center gap-1.5">
             <button
               type="button"
               disabled={loading}
               onClick={() => void markDone(today)}
-              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950 hover:bg-sky-100 disabled:opacity-60"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-semibold text-sky-950 hover:bg-sky-100 disabled:opacity-60"
             >
               {loading ? (
                 "..."
               ) : (
                 <>
-                  <ActionIcon name="regar" size={32} alt="" />
-                  <span>Regué hoy</span>
+                  <ActionIcon name="regar" size={24} alt="" />
+                  <span className="truncate">Regué hoy</span>
                 </>
               )}
             </button>
@@ -161,9 +161,9 @@ export function TaskCard({ task }: { task: PlantTask }) {
               type="button"
               disabled={loading}
               onClick={openPastDatePicker}
-              className="inline-flex items-center rounded-xl border border-emerald-900/15 bg-white px-3 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50 disabled:opacity-60"
+              className="inline-flex min-w-0 flex-1 items-center justify-center rounded-xl border border-emerald-900/15 bg-white px-2 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-50 disabled:opacity-60"
             >
-              Otra fecha
+              <span className="truncate">Otra fecha</span>
             </button>
             {scheduleButton}
             <input
@@ -177,19 +177,19 @@ export function TaskCard({ task }: { task: PlantTask }) {
             />
           </div>
         ) : (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-nowrap items-center gap-1.5">
             <button
               type="button"
               disabled={loading}
               onClick={() => void markDone()}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-100 disabled:opacity-60"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-100 disabled:opacity-60"
             >
               {loading ? (
                 "..."
               ) : (
                 <>
-                  <ActionIcon name={taskIcon} size={32} alt="" />
-                  <span>Listo</span>
+                  <ActionIcon name={taskIcon} size={24} alt="" />
+                  <span className="truncate">Listo</span>
                 </>
               )}
             </button>
