@@ -237,6 +237,24 @@ function formatWeekdayShort(dueAt: Date): string {
     .replace(/\.$/, "");
 }
 
+/** Badge copy for Hoy task cards: "Hoy" or "Atrasado 1d". */
+export function formatHoyStatusLabel(
+  status: DueStatus,
+  dueAt: Date,
+  today: Date = new Date(),
+): string {
+  if (status === "overdue") {
+    const overdueDays = Math.abs(daysUntil(dueAt, today));
+    return overdueDays > 0 ? `Atrasado ${overdueDays}d` : "Atrasado";
+  }
+
+  if (status === "due") {
+    return "Hoy";
+  }
+
+  return "Al día";
+}
+
 export function formatDueLabel(
   dueAt: Date,
   today: Date = new Date(),

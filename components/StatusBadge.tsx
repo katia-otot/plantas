@@ -12,12 +12,18 @@ const labels: Record<DueStatus, string> = {
   overdue: "Atrasada",
 };
 
-export function StatusBadge({ status }: { status: DueStatus }) {
+export function StatusBadge({
+  status,
+  label,
+}: {
+  status: DueStatus;
+  label?: string;
+}) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
+      className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {labels[status]}
+      {label ?? labels[status]}
     </span>
   );
 }

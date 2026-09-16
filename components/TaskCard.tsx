@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { withBasePath } from "@/lib/base-path";
 import { performAction } from "@/lib/client-api";
-import { formatDate, toInputDate } from "@/lib/format";
+import { toInputDate } from "@/lib/format";
 import { PLANT_PHOTO_ASPECT_RATIO } from "@/lib/photo-size";
+import { formatHoyStatusLabel } from "@/lib/schedule";
 import type { PlantTask } from "@/lib/types";
-import { TASK_LABELS } from "@/lib/types";
 import type { ActionIconName } from "./ActionIcon";
 import { ActionIcon } from "./ActionIcon";
 import { QuickActions } from "./QuickActions";
@@ -26,6 +26,7 @@ export function TaskCard({ task }: { task: PlantTask }) {
   const router = useRouter();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const today = toInputDate(new Date());
 
   async function markDone(happenedAt?: string) {
@@ -83,6 +84,22 @@ export function TaskCard({ task }: { task: PlantTask }) {
   const isWater = task.taskType === "water";
   const taskIcon = TASK_ICONS[task.taskType];
 
+  const scheduleButton = (
+    <button
+      type="button"
+      aria-expanded={showSchedule}
+      aria-label="Programar"
+      onClick={() => setShowSchedule((open) => !open)}
+      className={`inline-flex items-center justify-center rounded-xl border px-2.5 py-2 hover:bg-emerald-50 ${
+        showSchedule
+          ? "border-emerald-400 bg-emerald-50"
+          : "border-emerald-900/15 bg-white"
+      }`}
+    >
+      <ActionIcon name="agenda" size={32} alt="" />
+    </button>
+  );
+
   return (
     <article className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
       <Link
@@ -108,25 +125,23 @@ export function TaskCard({ task }: { task: PlantTask }) {
 
       <div className="p-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <ActionIcon name={taskIcon} size={36} alt="" />
-            <div className="min-w-0">
-              <Link
-                href={`/plants/${task.plantId}`}
-                className="text-base font-semibold text-emerald-950 hover:underline"
-              >
-                {task.plantName}
-              </Link>
-              <p className="mt-1 text-sm text-emerald-900/80">
-                {TASK_LABELS[task.taskType]} · {formatDate(task.dueAt)}
-              </p>
-            </div>
+            <Link
+              href={`/plants/${task.plantId}`}
+              className="truncate text-base font-semibold text-emerald-950 hover:underline"
+            >
+              {task.plantName}
+            </Link>
           </div>
-          <StatusBadge status={task.status} />
+          <StatusBadge
+            status={task.status}
+            label={formatHoyStatusLabel(task.status, new Date(task.dueAt))}
+          />
         </div>
 
         {isWater ? (
-          <div className="relative mt-3 flex flex-wrap gap-2">
+          <div className="relative mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={loading}
@@ -150,6 +165,7 @@ export function TaskCard({ task }: { task: PlantTask }) {
             >
               Otra fecha
             </button>
+            {scheduleButton}
             <input
               ref={dateInputRef}
               type="date"
@@ -161,7 +177,7 @@ export function TaskCard({ task }: { task: PlantTask }) {
             />
           </div>
         ) : (
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={loading}
@@ -177,13 +193,11 @@ export function TaskCard({ task }: { task: PlantTask }) {
                 </>
               )}
             </button>
+            {scheduleButton}
           </div>
         )}
 
-        <details className="mt-3">
-          <summary className="cursor-pointer text-sm font-medium text-emerald-800">
-            Programar
-          </summary>
+        {showSchedule ? (
           <div className="mt-3">
             <QuickActions
               plantId={task.plantId}
@@ -192,7 +206,7 @@ export function TaskCard({ task }: { task: PlantTask }) {
               compact
             />
           </div>
-        </details>
+        ) : null}
       </div>
     </article>
   );
