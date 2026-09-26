@@ -995,20 +995,22 @@ export function PatioMapBoard({
             >
               {editMode ? <CheckIcon /> : <PinIcon />}
             </MapControlButton>
-            <MapControlButton
-              label={circuitMode ? "Listo circuito" : "Dibujar circuito"}
-              active={circuitMode}
-              onClick={toggleCircuitMode}
-            >
-              {circuitMode ? <CheckIcon /> : <PathIcon />}
-            </MapControlButton>
-            <MapControlButton
-              label={showCircuit ? "Ocultar circuito" : "Mostrar circuito"}
-              active={showCircuit}
-              onClick={() => setShowCircuit((value) => !value)}
-            >
-              <EyeIcon open={showCircuit || circuitMode} />
-            </MapControlButton>
+            <div className="flex flex-row items-center gap-2">
+              <MapControlButton
+                label={circuitMode ? "Listo circuito" : "Dibujar circuito"}
+                active={circuitMode}
+                onClick={toggleCircuitMode}
+              >
+                {circuitMode ? <CheckIcon /> : <PathIcon />}
+              </MapControlButton>
+              <MapControlButton
+                label={showCircuit ? "Ocultar circuito" : "Mostrar circuito"}
+                active={showCircuit}
+                onClick={() => setShowCircuit((value) => !value)}
+              >
+                <EyeIcon open={showCircuit || circuitMode} />
+              </MapControlButton>
+            </div>
             {scale > 1 ? (
               <MapControlButton
                 label={`Zoom ${scale.toFixed(1)}× · restablecer`}

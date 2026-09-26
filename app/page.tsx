@@ -7,7 +7,6 @@ import {
   getPlantDueTasks,
   getSeason,
   getSeasonLabel,
-  getWaterIntervalDays,
   startOfDay,
 } from "@/lib/schedule";
 import {
@@ -153,7 +152,8 @@ async function UpcomingList({
 }) {
   const plants = await listActivePlants();
   const today = new Date();
-  const upcoming = plants
+  const todayStart = startOfDay(today).getTime();
+  const allUpcoming = plants
     .flatMap((plant) => {
       const summary = getPlantScheduleSummary(
         plant,
@@ -170,7 +170,7 @@ async function UpcomingList({
           coverPhotoPath: plant.coverPhotoPath,
           label: "Riego",
           dueAt: summary.nextWateredAt,
-          interval: getWaterIntervalDays(plant, today, seasonOverride),
+          walkOrder: plant.walkOrder,
         });
       }
 
@@ -182,7 +182,7 @@ async function UpcomingList({
           coverPhotoPath: plant.coverPhotoPath,
           label: TASK_LABELS.fertilizer,
           dueAt: summary.nextFertilizerAt,
-          interval: null,
+          walkOrder: plant.walkOrder,
         });
       }
 
@@ -194,7 +194,7 @@ async function UpcomingList({
           coverPhotoPath: plant.coverPhotoPath,
           label: TASK_LABELS.prune,
           dueAt: summary.nextPruneAt,
-          interval: null,
+          walkOrder: plant.walkOrder,
         });
       }
 
@@ -212,17 +212,16 @@ async function UpcomingList({
                 ]
               : TASK_LABELS.pest,
           dueAt: summary.nextPestAt,
-          interval: null,
+          walkOrder: plant.walkOrder,
         });
       }
 
       return items;
     })
-    .filter((item) => startOfDay(item.dueAt) > startOfDay(today))
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
-    .slice(0, 6);
+    .filter((item) => startOfDay(item.dueAt).getTime() > todayStart)
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
 
-  if (upcoming.length === 0) {
+  if (allUpcoming.length === 0) {
     return (
       <p className="mt-3 text-sm text-emerald-900/70">
         No hay cuidados próximos después de hoy.
@@ -230,43 +229,62 @@ async function UpcomingList({
     );
   }
 
+  const nextDayStart = startOfDay(allUpcoming[0].dueAt).getTime();
+  const upcoming = allUpcoming
+    .filter((item) => startOfDay(item.dueAt).getTime() === nextDayStart)
+    .sort((a, b) => {
+      const aOrder = a.walkOrder;
+      const bOrder = b.walkOrder;
+      const aOnPath = aOrder != null;
+      const bOnPath = bOrder != null;
+      if (aOnPath && bOnPath && aOrder !== bOrder) {
+        return aOrder! - bOrder!;
+      }
+      if (aOnPath !== bOnPath) {
+        return aOnPath ? -1 : 1;
+      }
+      return a.plantName.localeCompare(b.plantName, "es");
+    });
+
+  const dayLabel = formatDueLabel(upcoming[0].dueAt);
+
   return (
-    <ul className="mt-3 space-y-3">
-      {upcoming.map((item) => (
-        <li key={item.id}>
-          <Link
-            href={`/plants/${item.plantId}`}
-            className="flex overflow-hidden rounded-xl border border-emerald-900/10 bg-emerald-50/70 transition hover:border-emerald-300"
-          >
-            <div className="relative w-20 shrink-0 self-stretch min-h-[4.5rem] bg-emerald-100">
-              {item.coverPhotoPath ? (
-                <Image
-                  src={withBasePath(item.coverPhotoPath)}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="80px"
-                />
-              ) : (
-                <div className="flex h-full min-h-[4.5rem] items-center justify-center text-2xl">
-                  🌿
-                </div>
-              )}
-            </div>
-            <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-emerald-950">
-                  {item.plantName}
-                </p>
-                <p className="text-sm text-emerald-900/70">{item.label}</p>
+    <>
+      <p className="text-sm text-emerald-900/70">{dayLabel}</p>
+      <ul className="mt-3 space-y-3">
+        {upcoming.map((item) => (
+          <li key={item.id}>
+            <Link
+              href={`/plants/${item.plantId}`}
+              className="flex overflow-hidden rounded-xl border border-emerald-900/10 bg-emerald-50/70 transition hover:border-emerald-300"
+            >
+              <div className="relative w-20 shrink-0 self-stretch min-h-[4.5rem] bg-emerald-100">
+                {item.coverPhotoPath ? (
+                  <Image
+                    src={withBasePath(item.coverPhotoPath)}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                ) : (
+                  <div className="flex h-full min-h-[4.5rem] items-center justify-center text-2xl">
+                    🌿
+                  </div>
+                )}
               </div>
-              <span className="shrink-0 text-xs font-semibold text-emerald-800">
-                {formatDueLabel(item.dueAt)}
-              </span>
-            </div>
-          </Link>
-        </li>
-      ))}
-    </ul>
+              <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-emerald-950">
+                    {item.plantName}
+                  </p>
+                  <p className="text-sm text-emerald-900/70">{item.label}</p>
+                </div>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
