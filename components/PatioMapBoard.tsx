@@ -988,14 +988,14 @@ export function PatioMapBoard({
           }}
         >
           <div className="pointer-events-none absolute right-2 top-2 z-40 flex flex-col items-end gap-2">
-            <MapControlButton
-              label={editMode ? "Listo" : "Ubicar plantas"}
-              active={editMode}
-              onClick={toggleEditMode}
-            >
-              {editMode ? <CheckIcon /> : <PinIcon />}
-            </MapControlButton>
             <div className="flex flex-row items-center gap-2">
+              <MapControlButton
+                label={editMode ? "Listo" : "Ubicar plantas"}
+                active={editMode}
+                onClick={toggleEditMode}
+              >
+                {editMode ? <CheckIcon /> : <PinIcon />}
+              </MapControlButton>
               <MapControlButton
                 label={circuitMode ? "Listo circuito" : "Dibujar circuito"}
                 active={circuitMode}
