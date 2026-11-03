@@ -127,7 +127,7 @@
             return true;
           }
           // VPS Anthos lives under /plantas — never allow bare host root (PixelWeb).
-          if (host === "149.50.156.136") {
+          if (host === "149.50.156.136" || host === "katiagadea.com.ar") {
             const path = url.pathname || "/";
             return path === "/plantas" || path.startsWith("/plantas/");
           }

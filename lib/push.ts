@@ -128,7 +128,7 @@ export async function notifyTodayTasks(options?: {
     const fcm = await sendFcmToAllTokens({
       title: payload.title,
       body: payload.body,
-      url: process.env.PLANTAS_PUBLIC_URL || "http://149.50.156.136/plantas",
+      url: process.env.PLANTAS_PUBLIC_URL || "https://katiagadea.com.ar/plantas",
     });
     sent += fcm.sent;
     failed += fcm.failed;
@@ -199,7 +199,7 @@ export async function notifyRainAsk(options: {
     const fcm = await sendFcmToAllTokens({
       title,
       body,
-      url: `${process.env.PLANTAS_PUBLIC_URL || "http://149.50.156.136/plantas"}${url.startsWith("/") ? url : `/${url}`}`,
+      url: `${process.env.PLANTAS_PUBLIC_URL || "https://katiagadea.com.ar/plantas"}${url.startsWith("/") ? url : `/${url}`}`,
     });
     sent += fcm.sent;
     failed += fcm.failed;

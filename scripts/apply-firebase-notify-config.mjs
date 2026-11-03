@@ -13,7 +13,7 @@
  *   "messagingSenderId": "...",
  *   "appId": "...",
  *   "vapidKey": "...",
- *   "plantasUrl": "http://149.50.156.136/plantas"
+ *   "plantasUrl": "https://katiagadea.com.ar/plantas"
  * }
  */
 import { readFileSync, writeFileSync } from "fs";
@@ -42,7 +42,7 @@ for (const key of required) {
   }
 }
 
-const plantasUrl = cfg.plantasUrl || "http://149.50.156.136/plantas";
+const plantasUrl = cfg.plantasUrl || "https://katiagadea.com.ar/plantas";
 
 const moduleSource = `export const firebaseConfig = {
   apiKey: ${JSON.stringify(cfg.apiKey)},

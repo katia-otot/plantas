@@ -7,7 +7,7 @@ import {
 } from "@/lib/firebase-admin";
 
 const PLANTAS_URL =
-  process.env.PLANTAS_PUBLIC_URL || "http://149.50.156.136/plantas";
+  process.env.PLANTAS_PUBLIC_URL || "https://katiagadea.com.ar/plantas";
 
 export function isFcmConfigured() {
   return isFirebaseAdminConfigured();

@@ -900,11 +900,19 @@ export async function scheduleFertilizer(
   const plant = await assertPlantInGarden(plantId);
   const nextFertilizerAt = options?.nextFertilizerAt
     ? parseOptionalDate(options.nextFertilizerAt)
-    : getNextSaturday();
+    : startOfDay(new Date());
   const notes = options?.notes?.trim() || null;
 
   if (!nextFertilizerAt) {
     throw new Error("Fecha inválida");
+  }
+
+  // Hoy o anterior = ya lo hicieron; no dejar pendiente en Hoy.
+  if (startOfDay(nextFertilizerAt).getTime() <= startOfDay(new Date()).getTime()) {
+    return performPlantAction(plant, "fertilizer", {
+      notes: notes ?? undefined,
+      happenedAt: nextFertilizerAt,
+    });
   }
 
   return prisma.$transaction(async (tx) => {
@@ -984,7 +992,7 @@ export async function schedulePestTreatment(
 
   const nextPestAt = options?.nextPestAt
     ? parseOptionalDate(options.nextPestAt)
-    : getNextSaturday();
+    : startOfDay(new Date());
   const notes = resolveProductNote(plant, treatmentType, options?.notes);
 
   if (!nextPestAt) {
@@ -1025,6 +1033,22 @@ export async function schedulePestTreatment(
     ? formatTreatmentActionNote(scheduledTreatment, notes)
     : formatTreatmentNote(treatmentType, notes);
 
+  const careProducts = serializeCareTreatments(treatments);
+
+  // Hoy o anterior = ya lo hicieron; no dejar pendiente en Hoy.
+  if (startOfDay(nextPestAt).getTime() <= startOfDay(new Date()).getTime()) {
+    const plantForAction = await prisma.plant.update({
+      where: { id: plantId },
+      data: { careProducts },
+    });
+    return performPlantAction(plantForAction, "pest", {
+      notes,
+      happenedAt: nextPestAt,
+      treatmentType,
+      treatmentLabel: options?.treatmentLabel ?? null,
+    });
+  }
+
   return prisma.$transaction(async (tx) => {
     const updatedPlant = await tx.plant.update({
       where: { id: plantId },
@@ -1033,7 +1057,7 @@ export async function schedulePestTreatment(
         nextPestAt,
         pestNotes: notes,
         treatmentType,
-        careProducts: serializeCareTreatments(treatments),
+        careProducts,
       },
     });
 
@@ -1090,7 +1114,7 @@ export async function schedulePrune(
   const plant = await assertPlantInGarden(plantId);
   const nextPruneAt = options?.nextPruneAt
     ? parseOptionalDate(options.nextPruneAt)
-    : getNextSaturday();
+    : startOfDay(new Date());
   const notes =
     options?.notes?.trim() ||
     getPruneDescription(getPlantCareTreatments(plant)) ||
@@ -1105,6 +1129,21 @@ export async function schedulePrune(
     careProducts = serializeCareTreatments(
       ensureTreatmentProduct(getPlantCareTreatments(plant), "poda", notes),
     );
+  }
+
+  // Hoy o anterior = ya lo hicieron; no dejar pendiente en Hoy.
+  if (startOfDay(nextPruneAt).getTime() <= startOfDay(new Date()).getTime()) {
+    const plantForAction =
+      careProducts !== plant.careProducts
+        ? await prisma.plant.update({
+            where: { id: plantId },
+            data: { careProducts },
+          })
+        : plant;
+    return performPlantAction(plantForAction, "prune", {
+      notes: notes ?? undefined,
+      happenedAt: nextPruneAt,
+    });
   }
 
   return prisma.$transaction(async (tx) => {

@@ -2,7 +2,13 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { ActionIcon, type ActionIconName } from "@/components/ActionIcon";
-import { getDefaultSaturdayInput } from "@/lib/care-schedule";
+import {
+  getDefaultSaturdayInput,
+  getRememberedScheduleCareDate,
+  getTodayInput,
+  isScheduleCareDateAlreadyDone,
+  rememberScheduleCareDate,
+} from "@/lib/care-schedule";
 import { withBasePath } from "@/lib/base-path";
 import {
   PEST_TREATMENT_TYPES,
@@ -79,7 +85,12 @@ function ScheduleCareSheetContent({
   onSaved,
 }: Props & { kind: ScheduleCareKind }) {
   const titleId = useId();
-  const defaultDate = useMemo(() => getDefaultSaturdayInput(), []);
+  const defaultDate = useMemo(() => {
+    if (kind === "water") {
+      return getDefaultSaturdayInput();
+    }
+    return getRememberedScheduleCareDate(kind) ?? getTodayInput();
+  }, [kind]);
   const fertilizerTreatment = useMemo(
     () => getTreatmentByType(careTreatments, "fertilizante"),
     [careTreatments],
@@ -269,6 +280,10 @@ function ScheduleCareSheetContent({
         }
       }
 
+      if (kind !== "water") {
+        rememberScheduleCareDate(kind, nextDate);
+      }
+
       onSaved();
       onClose();
     } catch (error) {
@@ -327,6 +342,9 @@ function ScheduleCareSheetContent({
         "Tratamiento")
       : null;
 
+  const alreadyDone =
+    kind !== "water" && isScheduleCareDateAlreadyDone(nextDate);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <button
@@ -356,9 +374,7 @@ function ScheduleCareSheetContent({
         <p className="mt-1 text-sm text-emerald-900/70">
           {kind === "water"
             ? "Si no podés regar hoy, elegí cuándo vas a poder. Ese día aparece en Hoy."
-            : kind === "treatment"
-              ? "Elegí un tratamiento de la planta o creá uno nuevo y programalo acá."
-              : "Elegí cuándo querés el recordatorio. Por defecto se sugiere el próximo sábado."}
+            : "Hoy o una fecha pasada se registra como hecho. Una fecha futura queda en Hoy. Se recuerda la última fecha entre plantas."}
         </p>
 
         {kind === "water" && nextWateredAt ? (
@@ -650,11 +666,13 @@ function ScheduleCareSheetContent({
           >
             {saving
               ? "..."
-              : canCancel
-                ? "Actualizar recordatorio"
-                : creatingNew && kind === "treatment"
-                  ? "Crear y programar"
-                  : "Programar"}
+              : alreadyDone
+                ? "Registrar como hecho"
+                : canCancel
+                  ? "Actualizar recordatorio"
+                  : creatingNew && kind === "treatment"
+                    ? "Crear y programar"
+                    : "Programar"}
           </button>
 
           {canCancel ? (

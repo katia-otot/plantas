@@ -43,7 +43,7 @@ En `.env` local y en el VPS:
 # Sesión Auth.js (obligatorio en producción)
 AUTH_SECRET=generá-un-secreto-largo
 # Include /plantas (app home). Auth.js API stays at /api/auth internally (Next strips basePath).
-AUTH_URL=http://149.50.156.136/plantas
+AUTH_URL=https://katiagadea.com.ar/plantas
 NEXT_PUBLIC_BASE_PATH=/plantas
 
 # Dueñas extra (opcional; las dos de arriba ya están en código)

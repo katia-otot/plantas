@@ -14,7 +14,7 @@ const firebaseConfig = {
   appId: "1:532848276167:web:eff8aa880c6354e84c44e2",
 };
 
-const PLANTAS_URL = "http://149.50.156.136/plantas";
+const PLANTAS_URL = "https://katiagadea.com.ar/plantas";
 const ICON_URL = "https://plantas-patio.web.app/icon.png";
 const BADGE_URL = "https://plantas-patio.web.app/badge.png";
 

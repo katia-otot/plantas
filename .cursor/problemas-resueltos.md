@@ -1,3 +1,37 @@
+## 2026-10-22 — Anthos en katiagadea.com.ar/plantas (sin subdominio DNS)
+
+**Síntoma:** Se quería dominio propio sin entrar a DonWeb; `anthos.` no resolvía.
+**Contexto:** Apex `katiagadea.com.ar` ya apuntaba a la VPS (por eso el portafolio anduvo sin DNS nuevo). Subdominio sí exige registro A extra.
+**Causa:** Confundir “mismo dominio + path” con “subdominio nuevo”.
+**Solución:**
+1. En nginx de `katiagadea.com.ar`: `/plantas` → Next `:3000`; `/` → portafolio Netlify.
+2. IP `http://149.50.156.136/plantas...` → 301 a `http://katiagadea.com.ar/plantas...`.
+3. `AUTH_URL=http://katiagadea.com.ar/plantas`. Sin vhost `anthos.` / `plantas.`.
+4. Otras apps = otros paths en el mismo host (o subdominio si algún día se crea en DonWeb).
+**Prevención:** Preferir paths si no se quiere tocar DonWeb; subdominio solo con registro A.
+
+---
+
+## 2026-10-22 — VPS saturado: SSH sin banner + web timeout tras deploy Node/Next
+
+**Síntoma:** Puerto 5926 abre TCP pero no llega banner SSH; `/plantas/login` hace timeout. Varios chats no pueden entrar.
+**Contexto:** Chat de vulnerabilidades actualizó Node 20→22.23.4 y lanzó `deploy-vps.py`. El build remoto en `/opt/plantas.new` no emitía output; paramiko cortó ~30 min y el `npm run build` quedó huérfano saturando CPU/RAM. En paralelo, chats de dominio también intentaban SSH.
+**Causa:** Build pesado en VPS chico + timeout SSH sin matar el proceso remoto + varios agentes pegándole al mismo puerto.
+**Solución:**
+1. Reboot del VPS desde el panel del hosting → SSH y `/plantas/login` volvieron (200).
+2. Activar swap 2G (`/swapfile`) — el VPS tenía 0 swap y ~2 GB RAM.
+3. Limpiar `/opt/plantas.new` residual; redeploy con `deploy-vps.py` (keepalive + stream + `NODE_OPTIONS=--max-old-space-size=1536`).
+4. Deploy OK 2026-10-22: Next **16.4.2**, Node **22.23.4**, login 200, DB 389120 B, 41 fotos, 62 plantas / 22 pájaros / 525 eventos; scheduler activo.
+5. Backup intacto: `app.db.bak-2026-10-22`
+**Prevención:** Un solo chat toca el VPS a la vez. No reintentar SSH en loop mientras hay build. Dominio/vhosts esperar a que el VPS respire.
+
+**Coordinación chats (2026-10-22):**
+- Chat vulnerabilidades → recuperar VPS / terminar deploy
+- Este chat dominio Plantas → vhosts/`plantas-*.katiagadea.com.ar` solo cuando SSH vuelva
+- Chat portafolio → dominio Netlify del apex; no SSH al VPS
+
+---
+
 ## 2026-09-10 — Circuito: scroll 1 dedo vs dibujar sin querer
 
 **Síntoma:** En modo circuito, al scrollear el mapa se dibujaban líneas; el scroll con 2 dedos era incómodo.

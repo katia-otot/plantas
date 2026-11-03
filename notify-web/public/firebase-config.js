@@ -9,4 +9,4 @@ export const firebaseConfig = {
 
 export const vapidKey = "BM5LP9AFwWA1kAXnFoCLpntP9rXrOWbyDCsR00ZkOcvpAXdmy_oYkWbnpbxbdU0H2vYRkipxOT_wPwBqXnmz_uo";
 
-export const plantasUrl = "http://149.50.156.136/plantas";
+export const plantasUrl = "https://katiagadea.com.ar/plantas";

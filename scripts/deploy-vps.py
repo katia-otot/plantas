@@ -84,18 +84,44 @@ def make_tarball() -> bytes:
 
 
 def run(client: paramiko.SSHClient, command: str, timeout: int = 1800) -> str:
-    print(f"$ {command}")
-    _, stdout, stderr = client.exec_command(command, timeout=timeout)
-    out = stdout.read().decode("utf-8", errors="replace")
-    err = stderr.read().decode("utf-8", errors="replace")
+    """Run remote command, streaming output so long builds don't idle-timeout SSH."""
+    print(f"$ {command}", flush=True)
+    transport = client.get_transport()
+    if transport is not None:
+        transport.set_keepalive(30)
+    _, stdout, stderr = client.exec_command(command, timeout=timeout, get_pty=True)
+    # None = no per-read idle timeout; overall deadline is enforced below.
+    stdout.channel.settimeout(None)
+    deadline = time.monotonic() + timeout
+    chunks: list[str] = []
+    while True:
+        if stdout.channel.recv_ready():
+            data = stdout.channel.recv(4096).decode("utf-8", errors="replace")
+            if data:
+                chunks.append(data)
+                print(data, end="", flush=True)
+        if stdout.channel.exit_status_ready():
+            # Drain remaining buffered output
+            while stdout.channel.recv_ready():
+                data = stdout.channel.recv(4096).decode("utf-8", errors="replace")
+                if data:
+                    chunks.append(data)
+                    print(data, end="", flush=True)
+            break
+        if time.monotonic() > deadline:
+            try:
+                stdout.channel.close()
+            except Exception:  # noqa: BLE001
+                pass
+            raise TimeoutError(f"Remote command exceeded {timeout}s: {command}")
+        time.sleep(0.4)
     code = stdout.channel.recv_exit_status()
-    if out.strip():
-        print(out[-5000:] if len(out) > 5000 else out)
+    err = stderr.read().decode("utf-8", errors="replace")
     if err.strip():
-        print(err[-3000:] if len(err) > 3000 else err)
+        print(err[-3000:] if len(err) > 3000 else err, flush=True)
     if code != 0:
         raise RuntimeError(f"Command failed ({code}): {command}")
-    return out
+    return "".join(chunks)
 
 
 def try_start_plantas(client: paramiko.SSHClient) -> None:
@@ -178,9 +204,11 @@ def main() -> None:
             f"DATABASE_URL='{new_db_url}' NEXT_PUBLIC_BASE_PATH=/plantas "
             "npx prisma db push && "
             f"DATABASE_URL='{new_db_url}' npx tsx scripts/migrate-multi-garden.ts && "
+            # VPS ~2GB RAM: cap Node heap + rely on swap to avoid OOM during next build
+            "NODE_OPTIONS='--max-old-space-size=1536' "
             "NEXT_PUBLIC_BASE_PATH=/plantas npm run build && "
             "test -f .next/BUILD_ID",
-            timeout=1800,
+            timeout=2400,
         )
 
         # 6. Downtime corto: parar → refrescar data → swap → arrancar

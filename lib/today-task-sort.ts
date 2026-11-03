@@ -1,4 +1,4 @@
-/** Shared sort for Hoy task lists: walk circuit first, then due priority. */
+/** Shared sort for Hoy: overdue first, then walk circuit order. */
 
 export function compareTodayTasks<
   T extends {
@@ -8,6 +8,13 @@ export function compareTodayTasks<
     walkOrder?: number | null;
   },
 >(a: T, b: T): number {
+  const priority = { overdue: 0, due: 1, ok: 2 } as Record<string, number>;
+  const statusDiff =
+    (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
+  if (statusDiff !== 0) {
+    return statusDiff;
+  }
+
   const aOrder = a.walkOrder;
   const bOrder = b.walkOrder;
   const aOnPath = aOrder != null;
@@ -20,11 +27,5 @@ export function compareTodayTasks<
     return aOnPath ? -1 : 1;
   }
 
-  const priority = { overdue: 0, due: 1, ok: 2 } as Record<string, number>;
-  const statusDiff =
-    (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
-  if (statusDiff !== 0) {
-    return statusDiff;
-  }
   return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
 }

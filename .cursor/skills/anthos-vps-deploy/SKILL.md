@@ -38,7 +38,7 @@ El script viejo hacía esto mal:
 
 ## Contexto del proyecto
 
-- **Producción:** `http://149.50.156.136/plantas` → `/opt/plantas`
+- **Producción:** `https://katiagadea.com.ar/plantas` → `/opt/plantas` (IP `149.50.156.136` redirige)
 - **Base:** `/opt/plantas/data/app.db` (SQLite)
 - **Fotos:** `/opt/plantas/data/uploads/` — rutas en DB: `/api/uploads/{uuid}.jpg`
 - **Avisos push:** scheduler interno en la app (`lib/notification-scheduler.ts`); horario en menú → `GardenSettings`. Script `notify-today.sh` solo para prueba manual.
