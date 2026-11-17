@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { saveUploadedFile } from "@/lib/uploads";
 
 export async function POST(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");

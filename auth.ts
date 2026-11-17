@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { authConfig } from "@/auth.config";
 import { verifyFirebaseIdToken } from "@/lib/firebase-admin";
+import { ensureUserBilling } from "@/lib/billing";
 import { upsertUserFromFirebaseToken } from "@/lib/firebase-user";
 import { ensureGardenAccess } from "@/lib/garden-access";
 
@@ -81,6 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user }) {
       if (user.id && user.email) {
         await ensureGardenAccess(user.id, user.email);
+        await ensureUserBilling(user.id, user.email);
       }
     },
   },

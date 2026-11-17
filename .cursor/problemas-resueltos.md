@@ -1,3 +1,13 @@
+## 2026-11-04 — Mercado Pago: auto_return invalid / back_url.success
+
+**Síntoma:** Al pagar, error 400 `auto_return invalid. back_url.success must be defined`.
+**Contexto:** Checkout Pro local; `PLANTAS_PUBLIC_URL` era `http://149.50.156.136/plantas`.
+**Causa:** Con `auto_return: approved`, Mercado Pago exige `back_urls.success` en **HTTPS y con dominio**. Descarta `http`, localhost e IP, y el campo queda “sin definir”.
+**Solución:** En `lib/mercadopago.ts`, `checkoutSiteUrl()` usa la primera URL https válida (`MERCADOPAGO_SITE_URL`, luego públicas) o `https://katiagadea.com.ar/plantas`. El webhook solo se manda si también es https.
+**Prevención:** No apuntar el retorno de pago a la IP del VPS ni a localhost.
+
+---
+
 ## 2026-10-22 — Anthos en katiagadea.com.ar/plantas (sin subdominio DNS)
 
 **Síntoma:** Se quería dominio propio sin entrar a DonWeb; `anthos.` no resolvía.

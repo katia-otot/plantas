@@ -1,4 +1,5 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
+import { ensureUserBilling } from "@/lib/billing";
 import { prisma } from "@/lib/db";
 import { ensureGardenAccess } from "@/lib/garden-access";
 import { normalizeEmail } from "@/lib/owner-emails";
@@ -73,6 +74,7 @@ export async function upsertUserFromFirebaseToken(decoded: DecodedIdToken) {
   });
 
   await ensureGardenAccess(user.id, email);
+  await ensureUserBilling(user.id, email);
 
   return {
     id: user.id,

@@ -111,13 +111,13 @@ export function formatSoilPhValue(value: SoilPhValue): string {
 
 /** Map numeric pH to the consultation category buckets. */
 export function soilPhCategoryFromNumber(ph: number): SoilPhCategory {
-  if (ph < 5.5) {
+  if (ph < 6.25) {
     return "Acido";
   }
-  if (ph < 6.5) {
+  if (ph < 6.75) {
     return "Levemente Acido";
   }
-  if (ph < 7.5) {
+  if (ph < 7.25) {
     return "Neutro";
   }
   return "Levemente Alcalino";
@@ -155,29 +155,29 @@ export function soilPhStyle(value: SoilPhValue | null): {
       ? value.ph
       : (
           {
-            Acido: 4.5,
-            "Levemente Acido": 6,
+            Acido: 6,
+            "Levemente Acido": 6.5,
             Neutro: 7,
-            "Levemente Alcalino": 8,
+            "Levemente Alcalino": 7.5,
           } as const
         )[category];
 
   // Strip-like palette
-  if (ph < 5.5) {
+  if (ph < 6.25) {
     return {
       section: "border-red-300 bg-[#fde8e8]",
       badge: "bg-[#c0392b] text-white",
       swatch: "#e74c3c",
     };
   }
-  if (ph < 6.5) {
+  if (ph < 6.75) {
     return {
       section: "border-orange-300 bg-[#fff3e0]",
       badge: "bg-[#e67e22] text-white",
       swatch: "#f39c12",
     };
   }
-  if (ph < 7.5) {
+  if (ph < 7.25) {
     return {
       section: "border-lime-400 bg-[#f7fce8]",
       badge: "bg-[#7cb342] text-white",

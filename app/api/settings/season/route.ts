@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { setSeasonOverride } from "@/lib/plants";
 import type { Season } from "@/lib/types";
 
@@ -15,6 +16,9 @@ function parseSeasonOverride(value: unknown): Season | null {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const seasonOverride = parseSeasonOverride(body.seasonOverride);

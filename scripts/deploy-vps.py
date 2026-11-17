@@ -42,6 +42,12 @@ PASSWORD = os.environ["VPS_PASS"]
 LOCAL_ROOT = Path(os.environ["LOCAL_ROOT"])
 REMOTE_DIR = os.environ.get("REMOTE_DIR", "/opt/plantas")
 MIN_DB_BYTES = 1024
+# SKIP_DB_PUSH=1: no corre prisma db push ni migrate-multi-garden (preserva schema).
+SKIP_DB_PUSH = os.environ.get("SKIP_DB_PUSH", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 EXCLUDE_DIRS = {
     "node_modules",
@@ -196,14 +202,23 @@ def main() -> None:
         )
 
         # 5. Build en .new — producción sigue UP. Prisma solo toca la copia.
+        prisma_steps = (
+            "true"
+            if SKIP_DB_PUSH
+            else (
+                f"DATABASE_URL='{new_db_url}' NEXT_PUBLIC_BASE_PATH=/plantas "
+                "npx prisma db push && "
+                f"DATABASE_URL='{new_db_url}' npx tsx scripts/migrate-multi-garden.ts"
+            )
+        )
+        if SKIP_DB_PUSH:
+            print("SKIP_DB_PUSH=1 → no se ejecuta prisma db push / migrate-multi-garden")
         run(
             client,
             f"cd {new_dir} && "
             "chmod 755 scripts/notify-today.sh 2>/dev/null || true && "
             "npm install && "
-            f"DATABASE_URL='{new_db_url}' NEXT_PUBLIC_BASE_PATH=/plantas "
-            "npx prisma db push && "
-            f"DATABASE_URL='{new_db_url}' npx tsx scripts/migrate-multi-garden.ts && "
+            f"{prisma_steps} && "
             # VPS ~2GB RAM: cap Node heap + rely on swap to avoid OOM during next build
             "NODE_OPTIONS='--max-old-space-size=1536' "
             "NEXT_PUBLIC_BASE_PATH=/plantas npm run build && "
@@ -226,14 +241,17 @@ def main() -> None:
             f"test $(stat -c%s {new_dir}/data/app.db) -ge {MIN_DB_BYTES}",
         )
 
-        run(
-            client,
-            f"cd {new_dir} && "
-            f"DATABASE_URL='{new_db_url}' NEXT_PUBLIC_BASE_PATH=/plantas "
-            "npx prisma db push && "
-            f"DATABASE_URL='{new_db_url}' npx tsx scripts/migrate-multi-garden.ts",
-            timeout=600,
-        )
+        if not SKIP_DB_PUSH:
+            run(
+                client,
+                f"cd {new_dir} && "
+                f"DATABASE_URL='{new_db_url}' NEXT_PUBLIC_BASE_PATH=/plantas "
+                "npx prisma db push && "
+                f"DATABASE_URL='{new_db_url}' npx tsx scripts/migrate-multi-garden.ts",
+                timeout=600,
+            )
+        else:
+            print("SKIP_DB_PUSH=1 → omitido db push previo al swap")
 
         run(
             client,

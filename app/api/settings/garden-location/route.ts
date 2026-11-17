@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { GARDEN_TIMEZONE } from "@/lib/calendar-date";
 import { prisma } from "@/lib/db";
 import { resolveGardenId } from "@/lib/garden-access";
@@ -52,6 +53,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const body = (await request.json()) as {
       latitude?: number;

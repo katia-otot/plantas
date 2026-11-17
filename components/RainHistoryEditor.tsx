@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { withBasePath } from "@/lib/base-path";
 import {
   rainIntensityLabel,
@@ -25,6 +26,9 @@ export function RainHistoryEditor({
   const router = useRouter();
   const [days, setDays] = useState(initialDays);
   const [busyDate, setBusyDate] = useState<string | null>(null);
+  const [pendingDeleteDate, setPendingDeleteDate] = useState<string | null>(
+    null,
+  );
   const [newDate, setNewDate] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -62,7 +66,7 @@ export function RainHistoryEditor({
     }
   }
 
-  async function addPast() {
+  async function addRain(intensity: "moderate" | "heavy") {
     if (!newDate) {
       alert("Elegí una fecha");
       return;
@@ -72,29 +76,93 @@ export function RainHistoryEditor({
       alert("No se pueden registrar lluvias futuras");
       return;
     }
-    await save(newDate, "moderate");
+    await save(newDate, intensity);
     setNewDate("");
+  }
+
+  async function confirmDeleteRain() {
+    if (!pendingDeleteDate) {
+      return;
+    }
+    const rainDate = pendingDeleteDate;
+
+    try {
+      setBusyDate(rainDate);
+      setMessage(null);
+      const response = await fetch(withBasePath("/api/rain"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rainDate, intensity: "none" }),
+      });
+      const data = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo borrar");
+      }
+      setDays((prev) => prev.filter((d) => d.rainDate !== rainDate));
+      setPendingDeleteDate(null);
+      setMessage("Lluvia borrada. Se actualizaron los próximos riegos.");
+      router.refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Error");
+    } finally {
+      setBusyDate(null);
+    }
   }
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={pendingDeleteDate != null}
+        title="¿Borrar esta lluvia?"
+        description={
+          pendingDeleteDate
+            ? `Se va a borrar la lluvia del ${pendingDeleteDate} y se recalculan los próximos riegos.`
+            : undefined
+        }
+        confirmLabel="Borrar"
+        cancelLabel="Cancelar"
+        destructive
+        busy={busyDate === pendingDeleteDate}
+        onConfirm={() => void confirmDeleteRain()}
+        onCancel={() => {
+          if (busyDate === pendingDeleteDate) {
+            return;
+          }
+          setPendingDeleteDate(null);
+        }}
+      />
+
       <section className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-        <h2 className="font-semibold text-sky-950">Agregar fecha pasada</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <h2 className="font-semibold text-sky-950">Agregar lluvia</h2>
+        <div className="mt-3 flex flex-col gap-2">
           <input
             type="date"
             value={newDate}
             max={new Date().toISOString().slice(0, 10)}
             onChange={(event) => setNewDate(event.target.value)}
-            className="rounded-xl border border-sky-200 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-sky-200 px-3 py-2 text-sm"
           />
-          <button
-            type="button"
-            onClick={addPast}
-            className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white"
-          >
-            Agregar como moderada
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busyDate === newDate && Boolean(newDate)}
+              onClick={() => void addRain("moderate")}
+              className="flex-1 rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              Moderada
+            </button>
+            <button
+              type="button"
+              disabled={busyDate === newDate && Boolean(newDate)}
+              onClick={() => void addRain("heavy")}
+              className="flex-1 rounded-xl border border-sky-700 bg-white px-4 py-2 text-sm font-semibold text-sky-950 disabled:opacity-60"
+            >
+              Fuerte
+            </button>
+          </div>
         </div>
       </section>
 
@@ -124,14 +192,13 @@ export function RainHistoryEditor({
                   [
                     ["moderate", "Moderada"],
                     ["heavy", "Fuerte"],
-                    ["none", "No cuenta"],
                   ] as const
                 ).map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
                     disabled={busyDate === day.rainDate}
-                    onClick={() => save(day.rainDate, value)}
+                    onClick={() => void save(day.rainDate, value)}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${
                       day.intensity === value
                         ? "border-sky-700 bg-sky-700 text-white"
@@ -141,6 +208,14 @@ export function RainHistoryEditor({
                     {label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  disabled={busyDate === day.rainDate}
+                  onClick={() => setPendingDeleteDate(day.rainDate)}
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-900 disabled:opacity-60"
+                >
+                  Borrar
+                </button>
               </div>
             </li>
           ))}

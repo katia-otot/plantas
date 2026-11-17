@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { prisma } from "@/lib/db";
 import { resolveGardenId } from "@/lib/garden-access";
 import { createGardenNote } from "@/lib/garden-notes";
@@ -8,6 +9,9 @@ import { parseSpreadsheetBuffer } from "@/lib/import-plants";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");

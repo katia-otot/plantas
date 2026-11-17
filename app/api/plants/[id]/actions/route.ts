@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { getPlantById, performPlantAction } from "@/lib/plants";
 import { startOfDay } from "@/lib/schedule";
 import type { TreatmentType } from "@/lib/treatments";
@@ -39,6 +40,9 @@ function parseHappenedAt(value: unknown): Date {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   try {

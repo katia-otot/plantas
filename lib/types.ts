@@ -96,6 +96,8 @@ export interface PlantTask {
   status: DueStatus;
   coverPhotoPath: string | null;
   careTreatments: PlantTreatment[];
+  /** Orden en el recorrido del mapa; null si no está en el camino. */
+  walkOrder?: number | null;
   schedule: {
     nextWateredAt: string | null;
     needsFertilizer: boolean;

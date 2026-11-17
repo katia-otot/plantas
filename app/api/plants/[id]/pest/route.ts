@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { cancelPestTreatment, schedulePestTreatment } from "@/lib/plants";
 
 type RouteContext = {
@@ -6,6 +7,9 @@ type RouteContext = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   try {
@@ -26,6 +30,9 @@ export async function POST(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   try {

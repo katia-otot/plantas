@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { notifyTodayTasks } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
 /** Manual test from the Plantas UI. Scheduled sends use the in-app scheduler. */
 export async function POST() {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const result = await notifyTodayTasks({ forceEmpty: true });
     return NextResponse.json(result);

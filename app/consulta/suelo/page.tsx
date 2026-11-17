@@ -93,10 +93,10 @@ export default async function SoilGuidePage() {
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
           {[
-            { label: "Ácido <5.5", color: "#e74c3c" },
-            { label: "Lev. ácido <6.5", color: "#f39c12" },
-            { label: "Neutro <7.5", color: "#c0ca33" },
-            { label: "Lev. alcalino ≥7.5", color: "#1abc9c" },
+            { label: "Ácido <6.25", color: "#e74c3c" },
+            { label: "Lev. ácido <6.75", color: "#f39c12" },
+            { label: "Neutro <7.25", color: "#c0ca33" },
+            { label: "Lev. alcalino ≥7.25", color: "#1abc9c" },
           ].map((item) => (
             <span
               key={item.label}

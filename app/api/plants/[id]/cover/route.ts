@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { updatePlantCoverPhoto } from "@/lib/plants";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,9 @@ type RouteContext = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
   try {
     const body = (await request.json()) as {

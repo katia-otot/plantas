@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { getWalkCircuit, saveWalkCircuit } from "@/lib/walk-circuit";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const body = (await request.json()) as { strokes?: unknown };
     const data = await saveWalkCircuit(body.strokes);

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Fórmula crítica de lluvia — análisis para revisión</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #1a1a1a;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 12px 8px 40px;
+  }
+  h1 { font-size: 18pt; margin: 0 0 6px; }
+  h2 { font-size: 13pt; margin: 22px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; page-break-after: avoid; }
+  h3 { font-size: 11pt; margin: 16px 0 6px; page-break-after: avoid; }
+  p, li { margin: 0 0 8px; }
+  ul, ol { padding-left: 1.3em; margin: 0 0 10px; }
+  .meta { color: #555; font-size: 9.5pt; margin-bottom: 16px; }
+  .verdict {
+    background: #f3f6f0;
+    border-left: 4px solid #2f6b3a;
+    padding: 10px 12px;
+    margin: 12px 0 18px;
+  }
+  .warn {
+    background: #fff8e8;
+    border-left: 4px solid #b07a00;
+    padding: 10px 12px;
+    margin: 12px 0 18px;
+  }
+  .info {
+    background: #f0f4f8;
+    border-left: 4px solid #3a6ea5;
+    padding: 10px 12px;
+    margin: 12px 0 18px;
+  }
+  code, .mono {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 9.5pt;
+  }
+  pre {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 10px 12px;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.35;
+    page-break-inside: avoid;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 8px 0 14px;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 4px 6px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #eee; font-weight: 600; }
+  td.num, th.num { text-align: right; }
+  .small { font-size: 9pt; color: #555; }
+  .page-break { page-break-before: always; }
+  .footer-note { margin-top: 28px; font-size: 8.5pt; color: #666; border-top: 1px solid #ddd; padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Fórmula crítica de lluvia — documento para revisión</h1>
+<p class="meta">
+  Proyecto Anthos / Plantas · Fecha: 5 de septiembre de 2026 · Idioma: español<br />
+  Contenido: resumen del canvas <span class="mono">formula-critica-lluvia</span> + análisis completo (Claude Opus 5, razonamiento alto).<br />
+  Propósito: que un tercero evalúe si la fórmula recomendada es razonable antes de implementarla en la app.
+</p>
+
+<div class="verdict">
+  <strong>Veredicto (1 párrafo).</strong>
+  El Modelo 1 del usuario (crédito = D × 50%) mejora claramente el reset total actual de la app, pero su forma funcional es físicamente incorrecta: hace que el mismo evento de lluvia “valga” distinto según cuándo se regó cada planta. La estructura correcta es <em>saturante</em>: crédito exógeno topeado por el déficit del suelo.
+  Recomendación: lluvia moderada = crédito fijo acotado por intervalo (<span class="mono">clamp(round(I/3), 1, 3)</span>); lluvia fuerte = reset completo. El salto grande de calidad está en dejar de resetear con lluvia moderada; entre las buenas reglas la diferencia es secundaria.
+</div>
+
+<!-- ===================== PARTE A ===================== -->
+<h2>Parte A — Resumen del canvas formula-critica-lluvia</h2>
+
+<h3>A.1 Problema</h3>
+<ul>
+  <li>Plantas con intervalos de riego I ∈ {2, 4, 7, 14} días.</li>
+  <li>Se marca lluvia exterior: <strong>moderada</strong> o <strong>fuerte</strong>.</li>
+  <li>Objetivo: que el calendario refleje ~100% del agua que necesita la planta; no quedar corta ni programar como si hubiera recibido ~200%+.</li>
+  <li>Comportamiento actual de la app: lluvia = riego completo (reset) → próximo riego = lluvia + I. Incorrecto para lluvia moderada, sobre todo tarde en el ciclo.</li>
+</ul>
+
+<h3>A.2 Modelo 1 (intuición inicial del usuario)</h3>
+<pre>D = días desde el último riego cuando llueve
+p = intensidad (0.5 moderada, 1.0 fuerte)
+crédito_días = D × p
+días_hasta_próximo = (I − D) + crédito = I − D×(1−p)</pre>
+<p>Ejemplos lavanda (I=14, p=0.5): D=2 → próximo en 13 días; D=10 → próximo en 9 días.</p>
+
+<div class="warn">
+  <strong>Fallo conceptual del Modelo 1.</strong>
+  La misma tormenta deposita los mismos mm en todas las macetas. El Modelo 1 hace el crédito proporcional a D.
+  Eso implica que la misma lluvia “vale” 1 día si regaste hace 2 días y 6 días si regaste hace 12 — imposible como modelo de lluvia.
+  El crédito es <em>exógeno</em>; solo el tope (déficit del suelo) depende del tiempo.
+</div>
+
+<h3>A.3 Fórmula recomendada (saturante)</h3>
+<pre>crédito = min( c_moderada(I) , déficit )
+días_hasta_riego = (I − D) + crédito
+
+c_moderada(I) = clamp( round(I / 3) , 1 , 3 )
+  → I=2 → 1 · I=4 → 1 · I=7 → 2 · I=14 → 3
+
+lluvia fuerte: c = I  (reset completo / capacidad de campo)</pre>
+
+<table>
+  <thead>
+    <tr>
+      <th class="num">Intervalo I</th>
+      <th class="num">Crédito moderado máx.</th>
+      <th>Lluvia fuerte</th>
+      <th>Regla</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">2</td><td class="num">+1 día</td><td>reset (= I días desde la lluvia)</td><td>crédito = min(1, déficit)</td></tr>
+    <tr><td class="num">4</td><td class="num">+1 día</td><td>reset</td><td>crédito = min(1, déficit)</td></tr>
+    <tr><td class="num">7</td><td class="num">+2 días</td><td>reset</td><td>crédito = min(2, déficit)</td></tr>
+    <tr><td class="num">14</td><td class="num">+3 días</td><td>reset</td><td>crédito = min(3, déficit)</td></tr>
+  </tbody>
+</table>
+
+<h3>A.4 Comparación lavanda (I=14, lluvia moderada)</h3>
+<p class="small">Valores = días hasta el próximo riego contados desde el día de la lluvia. “Física ~” = aproximación del simulador (moderada ~6 mm, capacidad útil ~22 mm).</p>
+<table>
+  <thead>
+    <tr>
+      <th class="num">D</th>
+      <th class="num">Modelo 1 (50%)</th>
+      <th class="num">Saturante (recomendada)</th>
+      <th class="num">Reset / fuerte</th>
+      <th class="num">Física ~</th>
+      <th class="num">|err| M1</th>
+      <th class="num">|err| sat</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">0</td><td class="num">14</td><td class="num">14</td><td class="num">14</td><td class="num">14</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td class="num">2</td><td class="num">13</td><td class="num">14</td><td class="num">14</td><td class="num">14</td><td class="num">1</td><td class="num">0</td></tr>
+    <tr><td class="num">4</td><td class="num">12</td><td class="num">13</td><td class="num">14</td><td class="num">13.2</td><td class="num">1.2</td><td class="num">0.2</td></tr>
+    <tr><td class="num">6</td><td class="num">11</td><td class="num">11</td><td class="num">14</td><td class="num">11.2</td><td class="num">0.2</td><td class="num">0.2</td></tr>
+    <tr><td class="num">8</td><td class="num">10</td><td class="num">9</td><td class="num">14</td><td class="num">9.2</td><td class="num">0.8</td><td class="num">0.2</td></tr>
+    <tr><td class="num">10</td><td class="num">9</td><td class="num">7</td><td class="num">14</td><td class="num">7.2</td><td class="num">1.8</td><td class="num">0.2</td></tr>
+    <tr><td class="num">12</td><td class="num">8</td><td class="num">5</td><td class="num">14</td><td class="num">5.2</td><td class="num">2.8</td><td class="num">0.2</td></tr>
+    <tr><td class="num">14</td><td class="num">7</td><td class="num">3</td><td class="num">14</td><td class="num">3.2</td><td class="num">3.8</td><td class="num">0.2</td></tr>
+  </tbody>
+</table>
+
+<div class="info">
+  <strong>Intuición corregida.</strong>
+  Lluvia moderada <em>temprano</em> (suelo casi lleno): el exceso escurre → el reloj puede reiniciar (casi como reset). El bug grave del sistema actual no es ese: es la lluvia moderada <em>tarde</em>, donde el reset regala muchos días de agua que no cayeron.
+</div>
+
+<h3>A.5 Ranking honesto (simulación multi-mundo)</h3>
+<table>
+  <thead>
+    <tr><th class="num">#</th><th>Regla</th><th class="num">Loss prom.</th><th>Nota</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Tabla / saturante calibrada</td><td class="num">24.0</td><td>Óptimo práctico</td></tr>
+    <tr><td class="num">2</td><td>Fijo +2d / fuerte = reset</td><td class="num">24.4</td><td>Casi igual, más simple</td></tr>
+    <tr><td class="num">3</td><td>clamp(I/3, 1–3) / fuerte = reset</td><td class="num">24.7</td><td><strong>Recomendada</strong></td></tr>
+    <tr><td class="num">5</td><td>Modelo 1 con p=0.35 + clamps</td><td class="num">26.1</td><td>Si se prefiere la forma del usuario</td></tr>
+    <tr><td class="num">8</td><td>Modelo 1 p=0.5 tal cual</td><td class="num">28.0</td><td>Mejor que reset</td></tr>
+    <tr><td class="num">9</td><td>Reset total (app hoy)</td><td class="num">41.0</td><td>Peor</td></tr>
+  </tbody>
+</table>
+<p class="small">Función de pérdida usada: <span class="mono">loss = 3·déficit% + 1·desperdicio%</span>. Barrido de 27 mundos (capacidad × frecuencia de lluvia × mm “moderada”).</p>
+
+<!-- ===================== PARTE B ===================== -->
+<div class="page-break"></div>
+<h2>Parte B — Análisis Opus completo</h2>
+<p class="meta">Autor del análisis: Claude Opus 5 (razonamiento alto) · Rol: ingeniería + modelado cuantitativo. Encargo: cuestionar el Modelo 1 y proponer alternativas, no solo validarlo.</p>
+
+<h3>B.1 Veredicto extendido</h3>
+<p>
+  El Modelo 1 es una mejora clara sobre el reset total (−32% de error en simulación), pero <strong>no es el mejor</strong> y su forma funcional es físicamente incorrecta. Falla justo donde más importa: lluvia moderada al final del ciclo.
+</p>
+<p>La estructura correcta es saturante, no proporcional:</p>
+<pre>crédito_días = min( c(I, intensidad) , déficit_actual )</pre>
+<p>
+  El crédito que aporta una lluvia es una cantidad <strong>exógena</strong> (cae del cielo, no depende de cuándo regaste); lo único que depende del tiempo transcurrido es el <strong>tope</strong>: el suelo no puede almacenar más que su déficit. El Modelo 1 hace lo opuesto: hace que el crédito sea proporcional al tiempo transcurrido.
+</p>
+<p>
+  <strong>Comprobación de falsabilidad:</strong> dos lavandas idénticas, misma lluvia, regadas en días distintos. Con Modelo 1 (I=14, p=0.5), la planta con D=2 recibe crédito de 1 día y la de D=12 recibe 6 días — implica que la misma tormenta dejó ~1.6 mm en una maceta y ~9.4 mm en la de al lado. Eso no es un modelo de lluvia; es un modelo del calendario.
+</p>
+
+<h3>B.2 Crítica del Modelo 1</h3>
+<p><strong>Supuestos ocultos</strong></p>
+<ul>
+  <li>El volumen de lluvia escala con los días transcurridos (falso: la lluvia es exógena).</li>
+  <li>“Moderada = 50%” se aplica sobre el agua <em>consumida</em>, no sobre la capacidad del suelo — el mismo evento vale distinto según el historial de cada planta.</li>
+  <li>No distingue “el suelo no pudo absorber más” (escurrimiento) de “llovió poco” (dos causas físicas distintas en un solo parámetro).</li>
+</ul>
+<p><strong>Aciertos genuinos</strong></p>
+<ul>
+  <li>D=0 → crédito 0. Correcto: sobre suelo saturado la lluvia no almacena nada.</li>
+  <li>Nunca supera capacidad de campo si p ≤ 1: crédito p·D ≤ D siempre.</li>
+  <li>Monótona: la lluvia solo puede atrasar el riego, nunca adelantarlo (para D ≤ I).</li>
+  <li>El achicamiento por p funciona como cobertura ante incertidumbre del volumen real.</li>
+</ul>
+
+<table>
+  <thead>
+    <tr><th>Caso</th><th>Modelo 1 (p=0.5)</th><th>Verdad física ~</th><th>Error</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>I=14, D=14, moderada</td><td>próximo en 7 días</td><td>3.2 días</td><td>+120% (planta seca ~4 días)</td></tr>
+    <tr><td>I=14, D=2, moderada</td><td>13 días</td><td>14 días</td><td>riega 1 día antes de lo necesario</td></tr>
+    <tr><td>I=7, D=7, moderada</td><td>3.5 días</td><td>1.6 días</td><td>+120%</td></tr>
+    <tr><td>I=2, D=1, moderada</td><td>1.5 días</td><td>1.5 días</td><td>correcto</td></tr>
+  </tbody>
+</table>
+<p>
+  El error cambia de signo alrededor de D ≈ 0.46·I: <strong>subacredita a mitad de ciclo y sobreacredita al final</strong>. La forma es lineal cruzando el origen cuando la realidad es una rampa que satura.
+</p>
+
+<p><strong>Edge cases</strong></p>
+<ul>
+  <li><strong>D &gt; I (planta atrasada):</strong> catastrófico sin clamp. I=14, D=28, p=0.5 → próximo el mismo día de la lluvia; con D=40 la fórmula puede devolver fecha anterior a la lluvia.</li>
+  <li><strong>Lluvias múltiples:</strong> si D se mide desde el último riego real, cada lluvia re-acredita agua ya acreditada o subacredita en serie. Hay que medir D desde la <em>base efectiva</em>.</li>
+  <li><strong>Interior:</strong> no aplica (ya resuelto con isIndoor).</li>
+  <li><strong>I=2:</strong> Modelo 1 es de lo mejor (casi todo colapsa al mismo resultado).</li>
+  <li><strong>Lavanda I=14:</strong> peor caso del Modelo 1; ahí el exceso/subcrédito es más caro.</li>
+</ul>
+
+<h3>B.3 Función objetivo y simulación</h3>
+<p>
+  Balance hídrico diario en “días-de-agua”: tanque de capacidad C = I, consumo 1/día con ruido lognormal (σ=0.25), días de lluvia con ET reducida al 45%, lluvia Poisson, mm lognormal (moderada mediana 6 mm, fuerte 22 mm), intercepción 15%, capacidad de agua útil en zona de raíces ≈ 22 mm. Riego = dosis fija = tanque lleno (regar temprano desperdicia; regar tarde genera déficit).
+</p>
+<pre>loss = 3 · déficit% + 1 · desperdicio%</pre>
+<p>
+  Barrido de robustez: <strong>27 mundos</strong> = 3 escalados de capacidad × 3 frecuencias de lluvia (5, 9, 15 días) × 3 definiciones de “moderada” (4, 6, 10 mm). Se reporta promedio y peor mundo (minimax).
+</p>
+
+<h3>B.4 Ranking cuantitativo ampliado</h3>
+<table>
+  <thead>
+    <tr>
+      <th class="num">#</th>
+      <th>Regla (crédito en días, topeado por déficit)</th>
+      <th class="num">loss prom</th>
+      <th class="num">peor mundo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">1</td><td>tabla mod [1,2,2,3] / fuerte [2,4,6,8]</td><td class="num">24.0</td><td class="num">35.5</td></tr>
+    <tr><td class="num">2</td><td>fijo 2 días / fuerte reset</td><td class="num">24.4</td><td class="num">32.4</td></tr>
+    <tr><td class="num">3</td><td><strong>clamp(round(I/3),1,3) / fuerte reset</strong></td><td class="num">24.7</td><td class="num">37.3</td></tr>
+    <tr><td class="num">4</td><td>tabla mod [1,2,2,3] / fuerte reset</td><td class="num">24.8</td><td class="num">37.8</td></tr>
+    <tr><td class="num">5</td><td>Modelo 1 recalibrado a p=0.35</td><td class="num">26.1</td><td class="num">38.1</td></tr>
+    <tr><td class="num">6</td><td>tanque puro min(0.25·I, D) / fuerte reset</td><td class="num">26.2</td><td class="num">41.6</td></tr>
+    <tr><td class="num">7</td><td>híbrido min(0.5·D, tope(I))</td><td class="num">26.9</td><td class="num">43.0</td></tr>
+    <tr><td class="num">8</td><td>Modelo 1 tal cual (p=0.5/1.0)</td><td class="num">28.0</td><td class="num">44.8</td></tr>
+    <tr><td class="num">9</td><td>reset total (comportamiento actual)</td><td class="num">41.0</td><td class="num">63.9</td></tr>
+    <tr><td class="num">10</td><td>(I−D)·(1+k·p) — escalar tiempo restante</td><td class="num">~77</td><td>descartada</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Notas del ranking</strong></p>
+<ul>
+  <li><strong>(I−D)(1+kp) y (I−D)/(1−p): rechazar.</strong> En D=I el tiempo restante es 0, así que la lluvia no aporta nada — al revés de la física. Además /(1−p) explota con p=1. En D=0 dan I(1+p) &gt; I (acreditan sobre suelo saturado).</li>
+  <li><strong>Fecha efectiva ponderada = tanque con tope</strong> (misma fórmula escrita distinto).</li>
+  <li><strong>Secado exponencial / no lineal:</strong> no cambia el ranking de forma útil. En FAO-56 la ET es aprox. constante con agua fácilmente disponible. Agregar τ es un parámetro nuevo difícil de explicar en UI.</li>
+  <li><strong>PET/ET real (Open-Meteo u similar):</strong> gold standard (mm reales + ET0). Conviene más adelante; hoy el schema guarda un solo lastRainAt global sin intensidad. Ganancia estimada ~10–15% de loss vs costo de infra.</li>
+  <li><strong>Hallazgo clave:</strong> el salto grande está entre “reset” (41) y “cualquier crédito razonable” (24–28). La forma importa menos que: (1) no resetear con lluvia moderada, (2) calibrar la intensidad de forma conservadora.</li>
+</ul>
+
+<h3>B.5 Ecuaciones de implementación recomendadas</h3>
+<pre>I = intervalo vigente (verano/invierno según estación)
+
+// Si la planta ya estaba atrasada, el tanque está vacío
+base = max(base_efectiva, fecha_lluvia − I)
+
+c_moderada = clamp(round(I / 3), 1, 3)   // 2→1, 4→1, 7→2, 14→3
+c_fuerte   = I                           // reset
+
+crédito = min(c_intensidad, fecha_lluvia − base)
+
+base_efectiva' = min(fecha_lluvia, base + crédito)
+próximo_riego  = max(base_efectiva' + I, hoy)
+
+// Interior (isIndoor): sin crédito</pre>
+
+<p><strong>Por qué esta y no la marginalmente óptima #1:</strong> reproduce la verdad física con error &lt; 0.5 día en el rango tipico; da días enteros; maneja lluvias múltiples sin reglas especiales; fuerte = reset no toca el caso que hoy funciona.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th class="num">D (I=14)</th>
+      <th class="num">0</th><th class="num">2</th><th class="num">4</th><th class="num">6</th>
+      <th class="num">8</th><th class="num">10</th><th class="num">12</th><th class="num">14</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Verdad física</td>
+      <td class="num">14</td><td class="num">14</td><td class="num">13.2</td><td class="num">11.2</td>
+      <td class="num">9.2</td><td class="num">7.2</td><td class="num">5.2</td><td class="num">3.2</td>
+    </tr>
+    <tr>
+      <td><strong>Recomendada</strong></td>
+      <td class="num">14</td><td class="num">14</td><td class="num">13</td><td class="num">11</td>
+      <td class="num">9</td><td class="num">7</td><td class="num">5</td><td class="num">3</td>
+    </tr>
+    <tr>
+      <td>Modelo 1 (p=0.5)</td>
+      <td class="num">14</td><td class="num">13</td><td class="num">12</td><td class="num">11</td>
+      <td class="num">10</td><td class="num">9</td><td class="num">8</td><td class="num">7</td>
+    </tr>
+    <tr>
+      <td>Reset (actual)</td>
+      <td class="num">14</td><td class="num">14</td><td class="num">14</td><td class="num">14</td>
+      <td class="num">14</td><td class="num">14</td><td class="num">14</td><td class="num">14</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>B.6 Mapeo moderada / fuerte y redondeo</h3>
+<table>
+  <thead>
+    <tr><th class="num">I</th><th>moderada</th><th>fuerte</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">2</td><td>+1 día</td><td>reset</td></tr>
+    <tr><td class="num">4</td><td>+1 día</td><td>reset</td></tr>
+    <tr><td class="num">7</td><td>+2 días</td><td>reset</td></tr>
+    <tr><td class="num">14</td><td>+3 días</td><td>reset</td></tr>
+  </tbody>
+</table>
+<p>
+  Lo conservador del crédito moderado (~1/3 de ciclo, tope 3 días) no es timidez: es el óptimo calibrado. Cuando la simulación eligió p libremente, en 6 configuraciones eligió p_moderada entre 0.25 y 0.5 <em>sobre el tanque</em> — nunca 0.5 sobre lo consumido del Modelo 1.
+</p>
+<p>
+  Mantener <strong>fuerte = reset</strong> es defendible: 20+ mm sobre capacidad útil ~22 mm es recarga completa. La variante c_fuerte = [2,4,6,8] gana ~3% en promedio y pierde en el peor mundo — no vale la complejidad.
+</p>
+<p>
+  Redondeo: el crédito ya es entero. Si en el futuro hay p real: <strong>floor</strong> del crédito, mínimo 1, siempre ≤ déficit (la loss pesa déficit 3:1 vs desperdicio; mínimo 1 para feedback visible en UI).
+</p>
+
+<h3>B.7 Lluvias múltiples</h3>
+<p>
+  Se resuelve solo: el crédito es aditivo sobre la base y saturado por <span class="mono">min(fecha_lluvia, ·)</span>. Tres lluvias moderadas suman créditos pero nunca pasan de capacidad de campo.
+</p>
+<ul>
+  <li>Deduplicar por día calendario; quedarse con la intensidad máxima del día.</li>
+  <li>La base nunca retrocede (max defensivo; nextWateredAt también lo puede editar el usuario).</li>
+</ul>
+
+<h3>B.8 Encaje con el código actual (Anthos)</h3>
+<ul>
+  <li><span class="mono">applyRainToAllPlants</span> ya escribe solo <span class="mono">nextWateredAt</span> y deja <span class="mono">lastWateredAt</span> intacto — correcto para auditar el riego real.</li>
+  <li><span class="mono">rainPostponeDays</span> ya existe en el schema (default 2) y hoy no lo usa el flujo de lluvia — candidata natural a override por planta (alero, balcón cubierto, etc.).</li>
+  <li>Hace falta guardar <strong>intensidad</strong> por evento: hoy <span class="mono">lastRainAt</span> es una fecha global sin intensidad, y <span class="mono">getEffectiveLastWateredAt</span> toma max(lastWater, lastRain) = reset literal.</li>
+</ul>
+
+<h3>B.9 Limitaciones honestas</h3>
+<ul>
+  <li>Capacidad de agua útil del sustrato es el parámetro fantasma (~22 mm asumidos). Maceta vs tierra/cajón grande cambia el mundo real.</li>
+  <li>“Moderada” es subjetivo. Referencia útil: <em>moderada = mojó el suelo sin charcos ni platos desbordados; fuerte = charcos, platos desbordados o varias horas de lluvia</em>.</li>
+  <li>No modela profundidad de mojado ni flujo preferencial por paredes de maceta (ambos empujan el crédito hacia abajo).</li>
+  <li>Ignora ET nublada post-tormenta (2–3 días) — compensa parcialmente lo conservador del crédito.</li>
+  <li>La ventaja sobre el Modelo 1 es de segundo orden: ~90% de la ganancia viene de dejar de resetear con lluvia moderada. Si se prefiere el Modelo 1: bajar p a 0.35, medir D desde base efectiva, clampear atrasadas → loss ~26.1 (~6% del óptimo).</li>
+  <li>Nada se valida sin datos de campo: registrar una temporada qué plantas estaban secas o encharcadas al regar vale más que afinar constantes en simulador.</li>
+</ul>
+
+<div class="verdict">
+  <strong>Preguntas sugeridas para el revisor</strong>
+  <ol>
+    <li>¿Coincide con tu experiencia que una lluvia moderada temprana casi no “suma agua útil” (escurre) y una moderada tardía sí, pero no tanto como un riego completo?</li>
+    <li>¿Te parece razonable el tope de +3 días en plantas de 14 días, o preferirías +2 fijo para todas?</li>
+    <li>¿La distinción moderada/fuerte es operable a ojo en el patio, o hace falta una tercera categoría / mm?</li>
+    <li>¿Hay plantas bajo alero o con sustrato muy distinto que necesiten override (rainPostponeDays)?</li>
+  </ol>
+</div>
+
+<p class="footer-note">
+  Documento generado para revisión humana · No es código de producción · Fuentes: canvas
+  formula-critica-lluvia.canvas.tsx · análisis Claude Opus 5 (2026-09-05) · proyecto Plantas/Anthos.
+</p>
+
+</body>
+</html>

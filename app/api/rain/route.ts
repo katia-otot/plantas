@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { todayCalendarDateString } from "@/lib/calendar-date";
 import { isRainIntensity } from "@/lib/rain-credit";
 import {
@@ -24,6 +25,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const body = (await request.json().catch(() => ({}))) as {
       intensity?: string;
@@ -72,6 +76,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE() {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const result = await setTodaysRainIntensity("none");
     return NextResponse.json({

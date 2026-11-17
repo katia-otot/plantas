@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ActionIcon } from "@/components/ActionIcon";
-import { BackupDownloadButton } from "@/components/BackupDownloadButton";
-import { BackupRestoreButton } from "@/components/BackupRestoreButton";
-import { ImportExcelButton } from "@/components/ImportExcelButton";
-import { PushNotificationsPanel } from "@/components/PushNotificationsPanel";
-import { GardenLocationPanel } from "@/components/GardenLocationPanel";
 import { SeasonSelector } from "@/components/SeasonSelector";
-import { SignOutButton } from "@/components/SignOutButton";
 import { UserAccountSummary } from "@/components/UserAccountSummary";
 import {
   getClientMountedSnapshot,
@@ -154,9 +148,6 @@ export function AppMenu({
               </div>
 
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <PushNotificationsPanel />
-                <GardenLocationPanel />
-
                 <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
                   <h3 className="font-semibold text-emerald-950">Consultas</h3>
                   <div className="mt-3 space-y-2">
@@ -181,52 +172,21 @@ export function AppMenu({
                 />
 
                 <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">
-                  <h3 className="font-semibold text-emerald-950">Datos</h3>
-                  <div className="mt-3 space-y-4">
-                    <div>
-                      <p className="flex items-center gap-2 text-sm font-semibold text-emerald-950">
-                        <ActionIcon name="importacion" size={28} alt="" />
-                        Importar planilla
-                      </p>
-                      <p className="mt-1 text-sm text-emerald-900/70">
-                        Excel o CSV (carga inicial). No sirve para el respaldo
-                        JSON.
-                      </p>
-                      <div className="mt-2">
-                        <ImportExcelButton />
-                      </div>
-                    </div>
-                    <div className="border-t border-emerald-900/10 pt-4">
-                      <p className="flex items-center gap-2 text-sm font-semibold text-emerald-950">
-                        <ActionIcon name="respaldo-datos" size={28} alt="" />
-                        Respaldo
-                      </p>
-                      <p className="mt-1 text-sm text-emerald-900/70">
-                        Descargá o restaurá el JSON completo: plantas, historial,
-                        lluvia y fotos.
-                      </p>
-                      <div className="mt-2 space-y-2">
-                        <BackupDownloadButton />
-                        <BackupRestoreButton />
-                      </div>
-                    </div>
-                    <div className="border-t border-emerald-900/10 pt-4">
-                      <p className="text-sm font-semibold text-emerald-950">
-                        Cuenta
-                      </p>
-                      {user ? (
-                        <div className="mt-2">
-                          <UserAccountSummary
-                            name={user.name}
-                            email={user.email}
-                            image={user.image}
-                          />
-                        </div>
-                      ) : null}
-                      <div className="mt-2">
-                        <SignOutButton />
-                      </div>
-                    </div>
+                  {user ? (
+                    <UserAccountSummary
+                      name={user.name}
+                      email={user.email}
+                      image={user.image}
+                    />
+                  ) : null}
+                  <div className={user ? "mt-3" : undefined}>
+                    <Link
+                      href="/cuenta"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center rounded-xl bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-950 hover:bg-emerald-100"
+                    >
+                      Ver cuenta
+                    </Link>
                   </div>
                 </section>
               </div>

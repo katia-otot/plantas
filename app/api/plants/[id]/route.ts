@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import {
   deletePlant,
   getPlantById,
@@ -21,6 +22,9 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   try {
@@ -64,6 +68,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   try {

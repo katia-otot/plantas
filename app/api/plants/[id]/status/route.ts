@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { updatePlantStatus } from "@/lib/plants";
 import { isPlantStatus } from "@/lib/types";
 
@@ -7,6 +8,9 @@ type RouteContext = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   try {

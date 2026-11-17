@@ -15,6 +15,15 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  /// No cobra nunca (fundadores / early).
+  lifetimeFree  Boolean   @default(false)
+  /// trial | active | expired | lifetime
+  billingStatus String    @default("trial")
+  trialEndsAt   DateTime?
+  paidUntil     DateTime?
+  /// Último payment id de Mercado Pago (auditoría simple).
+  mpLastPaymentId String?
+  billingUpdatedAt DateTime?
   accounts      Account[]
   sessions      Session[]
   memberships   GardenMember[]

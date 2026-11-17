@@ -97,6 +97,7 @@ export const authConfig = {
       if (
         path.startsWith("/login") ||
         path.startsWith("/api/auth") ||
+        path.startsWith("/api/billing/webhook") ||
         path.startsWith("/api/push/notify-today") ||
         path === "/sw.js" ||
         path.startsWith("/icons/") ||

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { createGardenNote, listGardenNotes } from "@/lib/garden-notes";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const body = (await request.json()) as {
       title?: unknown;

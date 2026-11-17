@@ -25,7 +25,7 @@ import { compareTodayTasks } from "@/lib/today-task-sort";
 import { TREATMENT_TYPE_LABELS } from "@/lib/treatments";
 import { TASK_LABELS, type Season } from "@/lib/types";
 import { RainAllButton } from "@/components/RainAllButton";
-import { TaskCard } from "@/components/TaskCard";
+import { TodayTaskList } from "@/components/TodayTaskList";
 
 export const dynamic = "force-dynamic";
 
@@ -125,11 +125,7 @@ export default async function HomePage() {
           </p>
         </section>
       ) : (
-        <section className="space-y-3">
-          {tasks.map((task) => (
-            <TaskCard key={`${task.plantId}-${task.taskType}`} task={task} />
-          ))}
-        </section>
+        <TodayTaskList tasks={tasks} />
       )}
 
       <section className="rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm">

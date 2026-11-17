@@ -16,6 +16,21 @@ type ScheduleState = {
   weekendTime: string;
 };
 
+function ClockGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 8v4.5l3 1.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function NotificationScheduleSettings() {
   const [schedule, setSchedule] = useState<ScheduleState>({
     weekdayTime: "15:00",
@@ -24,6 +39,7 @@ function NotificationScheduleSettings() {
   const [draft, setDraft] = useState<ScheduleState>(schedule);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,6 +57,7 @@ function NotificationScheduleSettings() {
       } catch (error) {
         console.error(error);
         setScheduleMessage("No se pudo cargar el horario de avisos");
+        setEditing(true);
       } finally {
         setLoading(false);
       }
@@ -50,6 +67,12 @@ function NotificationScheduleSettings() {
   const dirty =
     draft.weekdayTime !== schedule.weekdayTime ||
     draft.weekendTime !== schedule.weekendTime;
+
+  function cancelEdit() {
+    setDraft(schedule);
+    setScheduleMessage(null);
+    setEditing(false);
+  }
 
   async function saveSchedule() {
     try {
@@ -71,6 +94,7 @@ function NotificationScheduleSettings() {
       }
       setSchedule(payload);
       setDraft(payload);
+      setEditing(false);
       setScheduleMessage("Horario guardado.");
     } catch (error) {
       console.error(error);
@@ -88,13 +112,53 @@ function NotificationScheduleSettings() {
     );
   }
 
+  if (!editing) {
+    return (
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            setScheduleMessage(null);
+            setEditing(true);
+          }}
+          className="flex w-full items-center gap-2 rounded-xl border border-emerald-900/10 bg-emerald-50/60 px-3 py-2 text-left transition hover:bg-emerald-50"
+        >
+          <span className="text-emerald-800">
+            <ClockGlyph />
+          </span>
+          <span className="min-w-0 flex-1 text-xs text-emerald-900/80">
+            <span className="font-semibold text-emerald-950">Horario · </span>
+            {formatScheduleLabel(schedule)}
+          </span>
+          <span className="shrink-0 text-xs font-semibold text-emerald-800">
+            Editar
+          </span>
+        </button>
+        {scheduleMessage ? (
+          <p className="px-1 text-xs text-emerald-900/80">{scheduleMessage}</p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 rounded-xl border border-emerald-900/10 bg-emerald-50/60 p-3">
-      <div>
-        <p className="text-sm font-semibold text-emerald-950">Horario de avisos</p>
-        <p className="mt-1 text-xs text-emerald-900/70">
-          {formatScheduleLabel(schedule)}. Aplica a todos los celulares del patio.
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-emerald-950">
+            Horario de avisos
+          </p>
+          <p className="mt-1 text-xs text-emerald-900/70">
+            Aplica a todos los celulares del patio (Argentina).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={cancelEdit}
+          className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100/80"
+        >
+          Cerrar
+        </button>
       </div>
 
       <label className="block text-sm text-emerald-950">

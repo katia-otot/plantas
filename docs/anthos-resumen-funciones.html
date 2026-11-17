@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Anthos — Resumen de funciones</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #14261a;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 8px 4px 28px;
+  }
+  h1 {
+    font-size: 20pt;
+    margin: 0 0 4px;
+    color: #0f3d24;
+  }
+  h2 {
+    font-size: 12.5pt;
+    margin: 18px 0 6px;
+    color: #0f3d24;
+    border-bottom: 1px solid #c5dbc9;
+    padding-bottom: 3px;
+    page-break-after: avoid;
+  }
+  p, li { margin: 0 0 6px; }
+  ul { padding-left: 1.25em; margin: 0 0 8px; }
+  .meta { color: #4a6352; font-size: 9.5pt; margin-bottom: 12px; }
+  .lead {
+    background: #eef7f1;
+    border-left: 4px solid #2f6b3a;
+    padding: 10px 12px;
+    margin: 8px 0 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    margin: 8px 0 4px;
+  }
+  .card {
+    background: #f7fbf8;
+    border: 1px solid #d5e6da;
+    border-radius: 8px;
+    padding: 8px 10px;
+    page-break-inside: avoid;
+  }
+  .card h3 {
+    font-size: 10.5pt;
+    margin: 0 0 4px;
+    color: #0f3d24;
+  }
+  .card p { margin: 0; font-size: 9.8pt; color: #2a4032; }
+  .note {
+    margin-top: 14px;
+    font-size: 9.5pt;
+    color: #4a6352;
+  }
+  strong { color: #0f3d24; }
+</style>
+</head>
+<body>
+
+<h1>Anthos</h1>
+<p class="meta">Resumen de la app · Septiembre 2026</p>
+
+<div class="lead">
+  <p><strong>Para qué sirve:</strong> Anthos es una web para llevar el control del patio compartido: saber qué plantas hay que regar, fertilizar, podar o tratar, registrar lluvias, guardar fotos e historial, y consultar el patio en el celular o la PC.</p>
+  <p style="margin-bottom:0"><em>Anthos</em> (griego ἄνθος) significa flor. Un solo patio, varias dueñas con la misma información.</p>
+</div>
+
+<h2>1. Pantallas principales</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Hoy</h3>
+    <p>Agenda del día: tareas vencidas o pendientes, botón para registrar lluvia y un vistazo a los próximos cuidados.</p>
+  </div>
+  <div class="card">
+    <h3>Mapa</h3>
+    <p>Plano del patio con las plantas ubicadas. Se ve de un vistazo el estado de cuidados de cada una.</p>
+  </div>
+  <div class="card">
+    <h3>Plantas</h3>
+    <p>Listado completo, alta de plantas nuevas y acceso a cada ficha con datos, fotos e historial.</p>
+  </div>
+  <div class="card">
+    <h3>Menú</h3>
+    <p>Consultas, estación, notificaciones, ubicación del jardín, respaldo de datos e inicio/cierre de sesión.</p>
+  </div>
+</div>
+
+<h2>2. Cuidados que controla</h2>
+<ul>
+  <li><strong>Riego</strong> — intervalos distintos para verano e invierno; se ajusta según estación (o un override manual).</li>
+  <li><strong>Lluvia</strong> — se registra desde Hoy; puede postergar riegos de plantas de exterior según intensidad. Hay historial editable y explicación de cómo se cuentan.</li>
+  <li><strong>Fertilizante</strong> — recordatorios según lo programado en cada planta.</li>
+  <li><strong>Poda</strong> — seguimiento de cuándo podar.</li>
+  <li><strong>Tratamientos</strong> — anti-bichos / anti-hongos u otros cuidados periódicos.</li>
+</ul>
+<p>En la ficha de cada planta: acciones rápidas (Regué, Fertilicé, Podé, Tratamiento), foto de portada, observaciones, próximo vencimiento de cada cuidado e historial con fotos.</p>
+
+<h2>3. Ficha de planta — datos útiles</h2>
+<ul>
+  <li>Nombre, estado (alta / baja / posible), interior o exterior.</li>
+  <li>Intervalos de riego por estación, fertilizante, poda y tratamientos.</li>
+  <li>Resistencia a heladas y pH del suelo.</li>
+  <li>Ubicación en el mapa del patio.</li>
+  <li>Notas / observaciones e historial de eventos.</li>
+</ul>
+
+<h2>4. Consultas y extras</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Historial de lluvias</h3>
+    <p>Días de lluvia, intensidad, correcciones y marcar “No cuenta”.</p>
+  </div>
+  <div class="card">
+    <h3>Historial general</h3>
+    <p>Eventos de cuidados del patio a lo largo del tiempo.</p>
+  </div>
+  <div class="card">
+    <h3>Notas del patio</h3>
+    <p>Anotaciones sueltas del jardín, aparte de la ficha de cada planta.</p>
+  </div>
+  <div class="card">
+    <h3>Pájaros</h3>
+    <p>Registro de aves que aparecen por el patio (con ficha propia).</p>
+  </div>
+  <div class="card">
+    <h3>Por estado</h3>
+    <p>Filtrar plantas en alta, baja o posible.</p>
+  </div>
+  <div class="card">
+    <h3>Por riego</h3>
+    <p>Ver plantas agrupadas por intervalo de riego.</p>
+  </div>
+  <div class="card">
+    <h3>Heladas</h3>
+    <p>Consulta de resistencia al frío.</p>
+  </div>
+  <div class="card">
+    <h3>pH del suelo</h3>
+    <p>Consulta según el pH indicado en cada planta.</p>
+  </div>
+</div>
+
+<h2>5. Configuración y datos</h2>
+<ul>
+  <li><strong>Estación</strong> — verano/invierno según calendario, con posibilidad de forzar la estación.</li>
+  <li><strong>Ubicación del jardín</strong> — datos de ubicación del patio.</li>
+  <li><strong>Notificaciones push</strong> — avisos en el celular (Firebase).</li>
+  <li><strong>Importar planilla</strong> — carga inicial desde Excel o CSV.</li>
+  <li><strong>Respaldo</strong> — descargar o restaurar JSON completo (plantas, historial, lluvias y fotos).</li>
+  <li><strong>Acceso</strong> — login con Google (Firebase); patio compartido entre cuentas dueñas.</li>
+</ul>
+
+<h2>6. En una frase</h2>
+<p>Anthos reemplaza la memoria y las anotaciones sueltas: te dice <strong>qué hay que hacer hoy</strong> en el patio, guarda <strong>qué se hizo</strong> (con fotos) y adapta el riego cuando <strong>llueve</strong>.</p>
+
+<p class="note">Documento generado a partir de la app Anthos (proyecto Plantas). Uso interno / familiar.</p>
+
+</body>
+</html>

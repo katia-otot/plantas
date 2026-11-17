@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { AppHeader } from "@/components/AppHeader";
+import { BillingBanner } from "@/components/BillingBanner";
 import { NavBar } from "@/components/NavBar";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full bg-[#edf7f0] text-emerald-950 antialiased">
         <div className="flex min-h-full flex-col">
           <AppHeader />
+          <BillingBanner />
           <div className="flex-1">{children}</div>
           <NavBar />
         </div>

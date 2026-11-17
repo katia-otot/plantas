@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireWriteAccess } from "@/lib/billing-guard";
 import { deleteGardenNote, updateGardenNote } from "@/lib/garden-notes";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const { id } = await context.params;
     const body = (await request.json()) as {
@@ -43,6 +47,9 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const { id } = await context.params;
     await deleteGardenNote(id);
