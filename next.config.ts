@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   // Respaldo JSON con fotos embebidas suele superar 10MB (proxy/middleware clona el body).
   experimental: {
     proxyClientMaxBodySize: "50mb",
+    // Evita el prompt interactivo de upgrade en builds del VPS (pty remoto).
+    agentUpgrade: false,
   },
   images: {
     localPatterns: [
