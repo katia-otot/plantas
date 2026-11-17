@@ -22,6 +22,11 @@ export type WaterIntervalPlant = {
 type Props = {
   plants: WaterIntervalPlant[];
   season: Season;
+  /** When set, season changes stay in-page (for lista de Plantas). */
+  onSeasonChange?: (season: Season) => void;
+  /** Skip the Consulta page header; only groups (+ optional season). */
+  embedded?: boolean;
+  showSeasonToggle?: boolean;
 };
 
 const PREVIEW_COUNT = 4;
@@ -130,12 +135,22 @@ function IntervalGroup({
   );
 }
 
-export function WaterIntervalGroups({ plants, season }: Props) {
+export function WaterIntervalGroups({
+  plants,
+  season,
+  onSeasonChange,
+  embedded = false,
+  showSeasonToggle = true,
+}: Props) {
   const router = useRouter();
   const groups = useMemo(() => groupByDays(plants, season), [plants, season]);
 
   function selectSeason(next: Season) {
     if (next === season) {
+      return;
+    }
+    if (onSeasonChange) {
+      onSeasonChange(next);
       return;
     }
     router.replace(
@@ -144,52 +159,61 @@ export function WaterIntervalGroups({ plants, season }: Props) {
     );
   }
 
+  const seasonToggle = showSeasonToggle ? (
+    <div
+      className="flex shrink-0 rounded-xl border border-emerald-900/15 bg-white p-1 shadow-sm"
+      role="group"
+      aria-label="Estación del riego"
+    >
+      <button
+        type="button"
+        onClick={() => selectSeason("summer")}
+        className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+          season === "summer"
+            ? "bg-emerald-700 text-white"
+            : "text-emerald-900 hover:bg-emerald-50"
+        }`}
+      >
+        Verano
+      </button>
+      <button
+        type="button"
+        onClick={() => selectSeason("winter")}
+        className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+          season === "winter"
+            ? "bg-emerald-700 text-white"
+            : "text-emerald-900 hover:bg-emerald-50"
+        }`}
+      >
+        Invierno
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
-            Consulta
-          </p>
-          <div className="mt-1 flex items-center gap-3">
-            <ActionIcon name="regar" size={56} alt="" />
-            <h1 className="text-3xl font-bold text-emerald-950">Por riego</h1>
+      {embedded ? (
+        seasonToggle ? (
+          <div className="flex justify-end">{seasonToggle}</div>
+        ) : null
+      ) : (
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
+              Consulta
+            </p>
+            <div className="mt-1 flex items-center gap-3">
+              <ActionIcon name="regar" size={56} alt="" />
+              <h1 className="text-3xl font-bold text-emerald-950">Por riego</h1>
+            </div>
+            <p className="mt-1 text-sm text-emerald-900/70">
+              Agrupadas por cada cuántos días · {plants.length} planta
+              {plants.length === 1 ? "" : "s"}
+            </p>
           </div>
-          <p className="mt-1 text-sm text-emerald-900/70">
-            Agrupadas por cada cuántos días · {plants.length} planta
-            {plants.length === 1 ? "" : "s"}
-          </p>
+          {seasonToggle}
         </div>
-
-        <div
-          className="flex shrink-0 rounded-xl border border-emerald-900/15 bg-white p-1 shadow-sm"
-          role="group"
-          aria-label="Estación del riego"
-        >
-          <button
-            type="button"
-            onClick={() => selectSeason("summer")}
-            className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-              season === "summer"
-                ? "bg-emerald-700 text-white"
-                : "text-emerald-900 hover:bg-emerald-50"
-            }`}
-          >
-            Verano
-          </button>
-          <button
-            type="button"
-            onClick={() => selectSeason("winter")}
-            className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-              season === "winter"
-                ? "bg-emerald-700 text-white"
-                : "text-emerald-900 hover:bg-emerald-50"
-            }`}
-          >
-            Invierno
-          </button>
-        </div>
-      </div>
+      )}
 
       {groups.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-emerald-900/15 bg-white p-8 text-center">

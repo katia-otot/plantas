@@ -1,15 +1,23 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ActionIcon } from "@/components/ActionIcon";
 import { PlantsList } from "@/components/PlantsList";
+import { parsePlantListGroupParam } from "@/lib/plant-list-groups";
 import { getGardenSettings, listPlants } from "@/lib/plants";
 
 export const dynamic = "force-dynamic";
 
-export default async function PlantsPage() {
-  const [plants, gardenSettings] = await Promise.all([
+type PageProps = {
+  searchParams: Promise<{ agrupar?: string | string[] }>;
+};
+
+export default async function PlantsPage({ searchParams }: PageProps) {
+  const [plants, gardenSettings, params] = await Promise.all([
     listPlants(),
     getGardenSettings(),
+    searchParams,
   ]);
+  const initialGroupMode = parsePlantListGroupParam(params.agrupar);
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
@@ -50,11 +58,18 @@ export default async function PlantsPage() {
           </Link>
         </section>
       ) : (
-        <PlantsList
-          plants={plants}
-          lastGlobalRainAt={gardenSettings.lastRainAt}
-          seasonOverride={gardenSettings.seasonOverride}
-        />
+        <Suspense
+          fallback={
+            <p className="text-sm text-emerald-900/70">Cargando lista…</p>
+          }
+        >
+          <PlantsList
+            plants={plants}
+            lastGlobalRainAt={gardenSettings.lastRainAt}
+            seasonOverride={gardenSettings.seasonOverride}
+            initialGroupMode={initialGroupMode}
+          />
+        </Suspense>
       )}
     </main>
   );

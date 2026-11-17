@@ -449,6 +449,54 @@ export async function createPlant(input: PlantInput, gardenId?: string) {
   });
 }
 
+/** Bulk-set soilType for plants in the current garden. */
+export async function updatePlantsSoilType(
+  plantIds: string[],
+  soilType: string | null,
+) {
+  const uniqueIds = [...new Set(plantIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return { updated: 0 };
+  }
+
+  const gardenId = await resolveGardenId();
+  const result = await prisma.plant.updateMany({
+    where: {
+      gardenId,
+      id: { in: uniqueIds },
+    },
+    data: {
+      soilType: soilType?.trim() || null,
+    },
+  });
+
+  return { updated: result.count };
+}
+
+/** Bulk-set frostResistance for plants in the current garden. */
+export async function updatePlantsFrostResistance(
+  plantIds: string[],
+  frostResistance: string | null,
+) {
+  const uniqueIds = [...new Set(plantIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return { updated: 0 };
+  }
+
+  const gardenId = await resolveGardenId();
+  const result = await prisma.plant.updateMany({
+    where: {
+      gardenId,
+      id: { in: uniqueIds },
+    },
+    data: {
+      frostResistance: frostResistance?.trim() || null,
+    },
+  });
+
+  return { updated: result.count };
+}
+
 export async function updatePlant(id: string, input: PlantPatch) {
   const existing = await assertPlantInGarden(id);
   const data: Record<string, unknown> = {};
@@ -785,6 +833,40 @@ export async function performPlantAction(
 
     return { plant: updatedPlant, event };
   });
+}
+
+/** Register the same care action on many plants in the current garden. */
+export async function performBulkPlantAction(
+  plantIds: string[],
+  action: Extract<CareEventType, "fertilizer" | "prune" | "pest">,
+  options?: {
+    notes?: string;
+    happenedAt?: Date;
+    treatmentType?: TreatmentType;
+    treatmentLabel?: string | null;
+  },
+) {
+  const uniqueIds = [...new Set(plantIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return { updated: 0 };
+  }
+
+  const gardenId = await resolveGardenId();
+  const plants = await prisma.plant.findMany({
+    where: {
+      gardenId,
+      id: { in: uniqueIds },
+      status: { in: ["alta", "posible"] },
+    },
+  });
+
+  let updated = 0;
+  for (const plant of plants) {
+    await performPlantAction(plant, action, options);
+    updated += 1;
+  }
+
+  return { updated };
 }
 
 export async function applyRainToAllPlants(happenedAt: Date = new Date()) {

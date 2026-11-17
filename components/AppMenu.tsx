@@ -47,24 +47,9 @@ const consultaLinks = [
     icon: "pajarito" as const,
   },
   {
-    href: "/consulta/estado",
-    label: "Por estado (alta / baja / posible)",
-    icon: "planta" as const,
-  },
-  {
-    href: "/consulta/riego",
-    label: "Por riego (intervalo)",
-    icon: "regar" as const,
-  },
-  {
-    href: "/consulta/heladas",
-    label: "Resistencia a heladas",
-    icon: "heladas" as const,
-  },
-  {
-    href: "/consulta/suelo",
-    label: "pH del suelo",
-    icon: "ph-suelo" as const,
+    href: "/consulta/cuidados",
+    label: "Cuidados en lote",
+    icon: "fertilizante" as const,
   },
 ];
 

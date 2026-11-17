@@ -1,6 +1,8 @@
-import Link from "next/link";
 import { ActionIcon } from "@/components/ActionIcon";
-import { PlantStatusBadge } from "@/components/PlantStatusBadge";
+import {
+  FrostGroupsEditor,
+  type FrostGroupView,
+} from "@/components/FrostGroupsEditor";
 import { resolveGardenId } from "@/lib/garden-access";
 import { prisma } from "@/lib/db";
 import {
@@ -75,13 +77,21 @@ export default async function FrostGuidePage() {
     }
   }
 
-  const ordered = [...groups.values()].sort((a, b) => {
-    const da = a.sort[0] - b.sort[0];
-    if (da !== 0) return da;
-    const db = a.sort[1] - b.sort[1];
-    if (db !== 0) return db;
-    return a.sort[2].localeCompare(b.sort[2], "es");
-  });
+  const ordered: FrostGroupView[] = [...groups.values()]
+    .sort((a, b) => {
+      const da = a.sort[0] - b.sort[0];
+      if (da !== 0) return da;
+      const db = a.sort[1] - b.sort[1];
+      if (db !== 0) return db;
+      return a.sort[2].localeCompare(b.sort[2], "es");
+    })
+    .map((group) => ({
+      label: group.label,
+      sectionClass: group.style.section,
+      badgeClass: group.style.badge,
+      swatch: group.style.swatch,
+      items: group.items,
+    }));
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
@@ -114,57 +124,7 @@ export default async function FrostGuidePage() {
         </div>
       </header>
 
-      {ordered.length === 0 ? (
-        <section className="rounded-2xl border border-dashed border-emerald-900/15 bg-white p-8 text-center">
-          <p className="font-semibold text-emerald-950">Todavía no hay plantas</p>
-        </section>
-      ) : (
-        <div className="space-y-4">
-          {ordered.map((group) => (
-            <section
-              key={group.label}
-              className={`rounded-2xl border p-4 shadow-sm ${group.style.section}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 font-semibold text-emerald-950">
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: group.style.swatch }}
-                  />
-                  {group.label}
-                </h2>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${group.style.badge}`}
-                >
-                  {group.items.length}
-                </span>
-              </div>
-              <ul className="mt-3 space-y-2">
-                {group.items.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={`/plants/${item.id}`}
-                      className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-3 text-sm font-medium text-emerald-950 hover:bg-white"
-                    >
-                      <span className="min-w-0">
-                        {item.name}
-                        {item.detail ? (
-                          <span className="ml-1.5 font-normal text-emerald-800/70">
-                            ({item.detail})
-                          </span>
-                        ) : null}
-                      </span>
-                      {item.status !== "alta" ? (
-                        <PlantStatusBadge status={item.status} />
-                      ) : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+      <FrostGroupsEditor groups={ordered} />
     </main>
   );
 }
